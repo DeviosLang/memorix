@@ -6,7 +6,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /memorix-server ./cmd/memorix-server
 
 FROM alpine:3.19
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /memorix-server /memorix-server
 EXPOSE 8080
 ENTRYPOINT ["/memorix-server"]
