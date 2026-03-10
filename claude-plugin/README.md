@@ -22,7 +22,8 @@ Add this to your ~/.claude/settings.json:
 {
   "env": {
     "MNEMO_API_URL": "http://your-server:8080",
-    "MNEMO_TENANT_ID": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "MNEMO_TENANT_ID": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "MNEMO_AGENT_ID": "claude-code"
   }
 }
 EOF
@@ -98,7 +99,8 @@ Add your tenant ID to `~/.claude/settings.json`:
 {
   "env": {
     "MNEMO_API_URL": "http://your-server:8080",
-    "MNEMO_TENANT_ID": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "MNEMO_TENANT_ID": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "MNEMO_AGENT_ID": "claude-code"
   }
 }
 ```
@@ -149,7 +151,8 @@ Add the `env` and `hooks` sections (merge with existing config):
 {
   "env": {
     "MNEMO_API_URL": "http://your-server:8080",
-    "MNEMO_TENANT_ID": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "MNEMO_TENANT_ID": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "MNEMO_AGENT_ID": "claude-code"
   },
   "hooks": {
     "SessionStart": [
@@ -196,6 +199,14 @@ claude -p "say hi"
 ```
 
 Should respond within 15 seconds. If it hangs, double-check that the hook paths are correct absolute paths.
+
+## Configuration
+
+| Env var | Required | Description |
+|---|---|---|
+| `MNEMO_API_URL` | Yes | Base URL of your memorix-server instance (e.g. `http://localhost:8080`) |
+| `MNEMO_TENANT_ID` | Yes | Tenant UUID returned when you provisioned the tenant |
+| `MNEMO_AGENT_ID` | No | Agent identifier attached to every memory write. Defaults to `claude-code`. Set a custom value (e.g. `claude-work`, `claude-personal`) to distinguish multiple Claude Code instances sharing the same tenant. Enables filtering by `?agent_id=` in the API. |
 
 ## Usage
 

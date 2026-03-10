@@ -27,6 +27,7 @@ memorix_server_get() {
   local path="$1"
   curl -sf --max-time 8 \
     -H "Content-Type: application/json" \
+    -H "X-Memorix-Agent-Id: ${MNEMO_AGENT_ID:-claude-code}" \
     "$(memorix_base)${path}"
 }
 
@@ -36,6 +37,7 @@ memorix_server_post() {
   local body="$2"
   curl -sf --max-time 8 \
     -H "Content-Type: application/json" \
+    -H "X-Memorix-Agent-Id: ${MNEMO_AGENT_ID:-claude-code}" \
     -d "${body}" \
     "$(memorix_base)${path}"
 }
@@ -66,9 +68,6 @@ memorix_search() {
 # read_stdin — Read stdin (hook input JSON) into $HOOK_INPUT.
 read_stdin() {
   local input=""
-  if read -t 2 -r input 2>/dev/null; then
-    HOOK_INPUT="$input"
-  else
-    HOOK_INPUT="{}"
-  fi
+  IFS= read -r -d '' -t 2 input 2>/dev/null || true
+  HOOK_INPUT="${input:-{}}"
 }
