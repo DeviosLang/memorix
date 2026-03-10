@@ -33,7 +33,11 @@ docker-build:
 	docker build -t memorix-server ./server
 
 docker-run: docker-build
-	docker run -d --name memorix-server --rm -p 8080:8080 \
+	-docker stop memorix-server 2>/dev/null; docker rm memorix-server 2>/dev/null; true
+	docker run -d --name memorix-server -p 8080:8080 \
 		-e MNEMO_DSN="$(MNEMO_DSN)" \
+		$(if $(MNEMO_LLM_API_KEY),-e MNEMO_LLM_API_KEY="$(MNEMO_LLM_API_KEY)") \
+		$(if $(MNEMO_LLM_BASE_URL),-e MNEMO_LLM_BASE_URL="$(MNEMO_LLM_BASE_URL)") \
+		$(if $(MNEMO_LLM_MODEL),-e MNEMO_LLM_MODEL="$(MNEMO_LLM_MODEL)") \
 		memorix-server
 

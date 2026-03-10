@@ -47,6 +47,10 @@ if len(msg) > 8000:
 print(f'last_message={shlex.quote(msg)}')
 " 2>/dev/null)" || { stop_hook_active="false"; last_message=""; }
 
+# Ensure variables are always defined (eval may succeed but produce no output)
+stop_hook_active="${stop_hook_active:-false}"
+last_message="${last_message:-}"
+
 if [[ "$stop_hook_active" == "true" ]]; then
   exit 0
 fi
