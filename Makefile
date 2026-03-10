@@ -35,6 +35,8 @@ docker-build:
 docker-run: docker-build
 	-docker stop memorix-server 2>/dev/null; docker rm memorix-server 2>/dev/null; true
 	docker run -d --name memorix-server -p 8080:8080 \
+		-e TZ=Asia/Shanghai \
+		-v /etc/localtime:/etc/localtime:ro \
 		-e MNEMO_DSN="$(MNEMO_DSN)" \
 		$(if $(MNEMO_LLM_API_KEY),-e MNEMO_LLM_API_KEY="$(MNEMO_LLM_API_KEY)") \
 		$(if $(MNEMO_LLM_BASE_URL),-e MNEMO_LLM_BASE_URL="$(MNEMO_LLM_BASE_URL)") \

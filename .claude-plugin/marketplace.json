@@ -14,7 +14,7 @@
       "description": "Persistent memory for Claude Code. Auto-loads memories on session start, auto-saves on stop, with on-demand store/recall skills.",
       "version": "0.1.0",
       "author": {
-        "name": "qiffang"
+        "name": "devioslang"
       },
       "repository": "https://github.com/DeviosLang/memorix",
       "license": "Apache-2.0",
