@@ -7,5 +7,6 @@
   },
   "repository": "https://github.com/devioslang/memorix",
   "license": "Apache-2.0",
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills"
 }
