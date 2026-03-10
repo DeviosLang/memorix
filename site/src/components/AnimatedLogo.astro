@@ -1,0 +1,240 @@
+---
+interface Props {
+  size?: number;
+}
+
+const { size = 168 } = Astro.props;
+---
+
+<div class="logo-shell" style={`--logo-size:${size}px;`}>
+  <svg
+    class="logo-art"
+    viewBox="0 0 180 180"
+    role="img"
+    aria-label="memorix animated logo"
+  >
+    <defs>
+      <linearGradient id="memorix-panel" x1="26" y1="24" x2="154" y2="156" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#141414" />
+        <stop offset="100%" stop-color="#0b0b0b" />
+      </linearGradient>
+      <linearGradient id="memorix-stroke" x1="35" y1="40" x2="145" y2="140" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#ffffff" />
+        <stop offset="100%" stop-color="#a8a8a8" />
+      </linearGradient>
+      <radialGradient id="memorix-glow" cx="50%" cy="46%" r="55%">
+        <stop offset="0%" stop-color="rgba(255, 255, 255, 0.15)" />
+        <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
+      </radialGradient>
+      <filter id="memorix-soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="6" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+
+    <circle class="back-glow" cx="90" cy="90" r="68" fill="url(#memorix-glow)" />
+    <circle class="pulse pulse-a" cx="90" cy="90" r="54" />
+    <circle class="pulse pulse-b" cx="90" cy="90" r="66" />
+
+    <g class="orbit orbit-a">
+      <ellipse cx="90" cy="90" rx="60" ry="28" />
+    </g>
+    <g class="orbit orbit-b">
+      <ellipse cx="90" cy="90" rx="60" ry="28" />
+    </g>
+
+    <rect
+      class="panel"
+      x="38"
+      y="38"
+      width="104"
+      height="104"
+      rx="28"
+      fill="url(#memorix-panel)"
+      stroke="url(#memorix-stroke)"
+      stroke-width="2.5"
+    />
+    <path
+      class="scan-line"
+      d="M52 87H128"
+      pathLength="100"
+    />
+    <g filter="url(#memorix-soft-glow)">
+      <text x="90" y="106" text-anchor="middle" class="wordmark">m9</text>
+    </g>
+    <circle class="spark spark-a" cx="132" cy="58" r="3.5" />
+    <circle class="spark spark-b" cx="47" cy="119" r="2.5" />
+  </svg>
+</div>
+
+<style>
+  .logo-shell {
+    width: var(--logo-size);
+    height: var(--logo-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-art {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .back-glow {
+    opacity: 0.9;
+    animation: logoFloat 5.5s ease-in-out infinite;
+  }
+
+  .panel {
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.08);
+  }
+
+  .wordmark {
+    fill: #f4f4f1;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 46px;
+    font-weight: 700;
+    letter-spacing: -3px;
+  }
+
+  .orbit ellipse {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.16);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-dasharray: 10 14;
+  }
+
+  .orbit-a {
+    transform-origin: 90px 90px;
+    animation: orbitSpin 10s linear infinite;
+  }
+
+  .orbit-b {
+    transform-origin: 90px 90px;
+    animation: orbitSpinReverse 13s linear infinite;
+  }
+
+  .pulse {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.16);
+    stroke-width: 1.2;
+    transform-origin: 90px 90px;
+  }
+
+  .pulse-a {
+    animation: pulseRing 3.2s ease-out infinite;
+  }
+
+  .pulse-b {
+    animation: pulseRing 3.2s ease-out 1.6s infinite;
+  }
+
+  .scan-line {
+    fill: none;
+    stroke: #d6d6d1;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-dasharray: 18 82;
+    animation: scanSweep 3.8s ease-in-out infinite;
+    opacity: 0.9;
+  }
+
+  .spark {
+    fill: #d6d6d1;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.24));
+  }
+
+  .spark-a {
+    animation: sparkBlink 2.4s ease-in-out infinite;
+  }
+
+  .spark-b {
+    animation: sparkBlink 2.8s ease-in-out 0.8s infinite;
+  }
+
+  @keyframes orbitSpin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes orbitSpinReverse {
+    from {
+      transform: rotate(210deg);
+    }
+    to {
+      transform: rotate(-150deg);
+    }
+  }
+
+  @keyframes pulseRing {
+    0% {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    25% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.12);
+    }
+  }
+
+  @keyframes scanSweep {
+    0%,
+    100% {
+      stroke-dashoffset: 100;
+      opacity: 0.35;
+    }
+    45%,
+    55% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+  }
+
+  @keyframes sparkBlink {
+    0%,
+    100% {
+      opacity: 0.2;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3);
+    }
+  }
+
+  @keyframes logoFloat {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .back-glow,
+    .orbit-a,
+    .orbit-b,
+    .pulse-a,
+    .pulse-b,
+    .scan-line,
+    .spark-a,
+    .spark-b {
+      animation: none;
+    }
+  }
+</style>

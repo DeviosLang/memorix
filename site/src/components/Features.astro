@@ -1,0 +1,62 @@
+---
+import FeatureCard from './FeatureCard.astro';
+import type { SiteFeaturesCopy } from '../content/site';
+
+interface Props {
+  features: SiteFeaturesCopy;
+}
+
+const { features } = Astro.props;
+---
+
+<section id="features" class="features">
+  <div class="container">
+    <div class="section-head">
+      <p class="section-kicker" data-i18n="features.kicker">{features.kicker}</p>
+      <h2 class="section-title" data-i18n="features.title">{features.title}</h2>
+      <p class="section-desc" data-i18n="features.description">
+        {features.description}
+      </p>
+    </div>
+    <div class="grid">
+      {features.items.map((feature, index) => (
+        <FeatureCard
+          icon={feature.icon}
+          title={feature.title}
+          description={feature.description}
+          titleKey={`features.items.${index}.title`}
+          descriptionKey={`features.items.${index}.description`}
+        />
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: 4rem 0;
+  }
+
+  .section-title {
+    max-width: 11ch;
+  }
+
+  .section-head {
+    width: min(100%, var(--content-rail));
+    margin: 0 auto 2.4rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    width: min(100%, var(--section-grid));
+    margin: 0 auto;
+  }
+
+  @media (max-width: 640px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

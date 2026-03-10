@@ -1,0 +1,118 @@
+---
+import type { SitePlatformsCopy } from '../content/site';
+
+interface Props {
+  platforms: SitePlatformsCopy;
+}
+
+const { platforms } = Astro.props;
+---
+
+<section id="platforms" class="agents">
+  <div class="container">
+    <div class="section-head">
+      <p class="section-kicker" data-i18n="platforms.kicker">{platforms.kicker}</p>
+      <h2 class="section-title" data-i18n="platforms.title">{platforms.title}</h2>
+      <p class="section-desc" data-i18n="platforms.description">
+        {platforms.description}
+      </p>
+    </div>
+    <div class="agent-grid">
+      {platforms.items.map((agent, index) => (
+        <div class="agent-card">
+          <div class="agent-name" data-i18n={`platforms.items.${index}.name`}>{agent.name}</div>
+          <div class="agent-desc" data-i18n={`platforms.items.${index}.desc`}>{agent.desc}</div>
+          <div class="agent-detail" data-i18n={`platforms.items.${index}.detail`}>
+            {agent.detail}
+          </div>
+        </div>
+      ))}
+    </div>
+    <p class="agent-note" data-i18n="platforms.note">
+      {platforms.note}
+    </p>
+  </div>
+</section>
+
+<style>
+  .agents {
+    padding: 4rem 0;
+  }
+
+  .section-title {
+    max-width: 12.5ch;
+  }
+
+  .section-head {
+    width: min(100%, var(--content-rail));
+    margin: 0 auto 2rem;
+  }
+
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    width: min(100%, var(--section-grid));
+    margin: 0 auto;
+  }
+
+  .agent-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .agent-card {
+    background: linear-gradient(180deg, var(--surface-gradient-start), var(--surface-gradient-end));
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: var(--surface-inset), var(--surface-shadow);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .agent-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+
+  .agent-name {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.45rem;
+  }
+
+  .agent-desc {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .agent-detail {
+    font-size: 0.98rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .agent-note {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-top: 1.5rem;
+    width: min(100%, var(--content-rail));
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (max-width: 640px) {
+    .agent-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .agent-card:last-child {
+      grid-column: auto;
+    }
+  }
+</style>

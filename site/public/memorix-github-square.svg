@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="memorix GitHub square logo">
+  <rect x="36" y="36" width="440" height="440" rx="84" fill="#0A0A0A"/>
+  <rect x="36" y="36" width="440" height="440" rx="84" fill="none" stroke="#1F1F1F" stroke-width="2"/>
+  <text
+    x="256"
+    y="304"
+    text-anchor="middle"
+    font-family="'JetBrains Mono', monospace"
+    font-size="164"
+    font-weight="700"
+    letter-spacing="-18"
+    fill="#F4F4F2"
+  >
+    m<tspan fill="#D2FF72">9</tspan>
+  </text>
+</svg>

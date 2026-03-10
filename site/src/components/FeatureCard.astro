@@ -1,0 +1,52 @@
+---
+interface Props {
+  icon: string;
+  title: string;
+  description: string;
+  titleKey: string;
+  descriptionKey: string;
+}
+const { icon, title, description, titleKey, descriptionKey } = Astro.props;
+---
+
+<div class="card">
+  <div class="card-icon">{icon}</div>
+  <h3 class="card-title" data-i18n={titleKey}>{title}</h3>
+  <p class="card-desc" data-i18n={descriptionKey}>{description}</p>
+</div>
+
+<style>
+  .card {
+    background: linear-gradient(180deg, var(--surface-gradient-start), var(--surface-gradient-end));
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.55rem;
+    box-shadow: var(--surface-inset), var(--surface-shadow);
+    transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+
+  .card-icon {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 1.1rem;
+  }
+
+  .card-title {
+    font-size: 1.2rem;
+    margin-bottom: 0.65rem;
+    color: var(--text);
+  }
+
+  .card-desc {
+    font-size: 0.98rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+</style>

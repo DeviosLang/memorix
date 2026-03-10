@@ -1,0 +1,43 @@
+{
+  "name": "memorix-opencode",
+  "version": "0.1.0",
+  "description": "OpenCode memory plugin — cloud-persistent AI agent memory with hybrid vector + keyword search via memorix-server",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "license": "Apache-2.0",
+  "author": "devioslang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devioslang/memorix.git",
+    "directory": "opencode-plugin"
+  },
+  "homepage": "https://github.com/devioslang/memorix/tree/main/opencode-plugin#readme",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "memory",
+    "agent-memory",
+    "tidb",
+    "vector-search",
+    "persistent-memory",
+    "ai-agent"
+  ],
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.2.15"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.8.0"
+  }
+}

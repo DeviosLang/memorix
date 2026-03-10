@@ -1,0 +1,47 @@
+{
+  "id": "memorix",
+  "name": "Memorix Memory",
+  "description": "AI agent memory — server mode (memorix-server). Hybrid vector + keyword search.",
+  "kind": "memory",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiUrl": {
+        "type": "string",
+        "description": "memorix-server URL (server mode)"
+      },
+      "tenantID": {
+        "type": "string",
+        "description": "Tenant ID for v1alpha1 memorix routes (preferred)"
+      },
+      "apiToken": {
+        "type": "string",
+        "description": "Legacy alias for tenantID (kept for backward compatibility)"
+      },
+      "userToken": {
+        "type": "string",
+        "description": "Legacy alias for tenantID"
+      }
+    }
+  },
+  "uiHints": {
+    "apiUrl": {
+      "label": "Server URL",
+      "placeholder": "https://your-server.example.com"
+    },
+    "tenantID": {
+      "label": "Tenant ID",
+      "placeholder": "uuid..."
+    },
+    "apiToken": {
+      "label": "Legacy Tenant ID Alias",
+      "placeholder": "uuid...",
+      "sensitive": true
+    },
+    "userToken": {
+      "label": "Legacy Tenant ID Alias",
+      "placeholder": "uuid...",
+      "sensitive": true
+    }
+  }
+}

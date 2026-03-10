@@ -1,0 +1,144 @@
+---
+import type { SiteLocale, SiteMeta } from '../content/site';
+
+interface Props {
+  meta: SiteMeta;
+  locale?: SiteLocale;
+}
+
+const {
+  meta,
+  locale = 'en',
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://memorix.ai').toString();
+const htmlLang = locale === 'zh' ? 'zh-CN' : locale === 'zh-Hant' ? 'zh-Hant' : locale;
+---
+
+<!doctype html>
+<html lang={htmlLang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={meta.description} />
+    <meta property="og:title" content={meta.title} />
+    <meta property="og:description" content={meta.description} />
+    <meta property="og:site_name" content="memorix" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <script is:inline>
+      (() => {
+        const localeStorageKey = 'memorix.locale';
+        const storageKey = 'memorix.theme';
+        const browserLocales = Array.isArray(navigator.languages) && navigator.languages.length > 0
+          ? navigator.languages
+          : [navigator.language];
+        const resolveLocale = () => {
+          const storedLocale = (() => {
+            try {
+              return localStorage.getItem(localeStorageKey);
+            } catch {
+              return null;
+            }
+          })();
+
+          if (
+            storedLocale === 'en' ||
+            storedLocale === 'zh' ||
+            storedLocale === 'zh-Hant' ||
+            storedLocale === 'ja' ||
+            storedLocale === 'ko' ||
+            storedLocale === 'id' ||
+            storedLocale === 'th'
+          ) {
+            return storedLocale;
+          }
+
+          for (const locale of browserLocales) {
+            const normalized = locale.toLowerCase();
+
+            if (normalized.startsWith('zh')) {
+              if (
+                normalized.startsWith('zh-hant') ||
+                normalized.startsWith('zh-tw') ||
+                normalized.startsWith('zh-hk') ||
+                normalized.startsWith('zh-mo')
+              ) {
+                return 'zh-Hant';
+              }
+
+              return 'zh';
+            }
+
+            if (normalized.startsWith('ja')) {
+              return 'ja';
+            }
+
+            if (normalized.startsWith('ko')) {
+              return 'ko';
+            }
+
+            if (normalized.startsWith('id') || normalized.startsWith('in')) {
+              return 'id';
+            }
+
+            if (normalized.startsWith('th')) {
+              return 'th';
+            }
+
+            if (normalized.startsWith('en')) {
+              return 'en';
+            }
+          }
+
+          return 'en';
+        };
+        const stored = (() => {
+          try {
+            return localStorage.getItem(storageKey);
+          } catch {
+            return null;
+          }
+        })();
+
+        const preference =
+          stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+        const theme =
+          preference === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : preference;
+        const locale = resolveLocale();
+        const lang = locale === 'zh' ? 'zh-CN' : locale === 'zh-Hant' ? 'zh-Hant' : locale;
+
+        document.documentElement.lang = lang;
+        document.documentElement.dataset.locale = locale;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = preference;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>{meta.title}</title>
+  </head>
+  <body id="top">
+    <slot />
+    <script>
+      import { initSiteUI } from '../scripts/site-ui';
+
+      initSiteUI();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>

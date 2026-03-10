@@ -1,0 +1,11 @@
+{
+  "name": "memorix-memory",
+  "version": "0.1.0",
+  "description": "Persistent memory for Claude Code. Auto-loads memories on session start, auto-saves on stop, with on-demand store/recall skills.",
+  "author": {
+    "name": "devioslang"
+  },
+  "repository": "https://github.com/devioslang/memorix",
+  "license": "Apache-2.0",
+  "hooks": "./hooks/hooks.json"
+}

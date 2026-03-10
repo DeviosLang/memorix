@@ -1,0 +1,85 @@
+---
+import type { SiteFooterCopy } from '../content/site';
+
+interface Props {
+  footer: SiteFooterCopy;
+}
+
+const { footer } = Astro.props;
+---
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <p class="brand"><span>MEM</span><span class="brand-accent">9</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/memorix-ai/memorix" target="_blank" rel="noopener" data-i18n="footer.github">
+        {footer.github}
+      </a>
+      <span class="sep">/</span>
+      <a
+        href="https://github.com/memorix-ai/memorix/blob/main/LICENSE"
+        target="_blank"
+        rel="noopener"
+        data-i18n="footer.license"
+      >
+        {footer.license}
+      </a>
+      <span class="sep">/</span>
+      <a
+        href="https://github.com/memorix-ai/memorix/blob/main/CONTRIBUTING.md"
+        target="_blank"
+        rel="noopener"
+        data-i18n="footer.contributing"
+      >
+        {footer.contributing}
+      </a>
+    </div>
+    <p class="copyright" data-i18n="footer.copyright">
+      {footer.copyright}
+    </p>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    padding: 4rem 0 2.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .brand {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--text);
+  }
+
+  .brand-accent {
+    color: var(--accent);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .sep {
+    color: var(--text-dim);
+  }
+
+  .copyright {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-align: center;
+  }
+</style>
