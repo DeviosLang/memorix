@@ -1,0 +1,25 @@
+{
+  "name": "memorix",
+  "owner": {
+    "name": "devioslang"
+  },
+  "metadata": {
+    "description": "Cloud-persistent memory plugins for AI agents, powered by TiDB Serverless",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "memorix-memory",
+      "source": "./claude-plugin",
+      "description": "Persistent memory for Claude Code. Auto-loads memories on session start, auto-saves on stop, with on-demand store/recall skills.",
+      "version": "0.1.0",
+      "author": {
+        "name": "qiffang"
+      },
+      "repository": "https://github.com/DeviosLang/memorix",
+      "license": "Apache-2.0",
+      "keywords": ["memory", "persistence", "tidb", "agent-memory", "cross-session"],
+      "category": "productivity"
+    }
+  ]
+}
