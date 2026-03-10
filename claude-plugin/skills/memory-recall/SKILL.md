@@ -24,7 +24,7 @@ Memorix uses server mode (memorix-server):
 source "$(find ~ -path '*/memorix/claude-plugin/hooks/common.sh' -print -quit 2>/dev/null || echo /dev/null)"
 
 # Search memories
-mnemo_search "KEYWORD" 10
+memorix_search "KEYWORD" 10
 ```
 
 If common.sh isn't available, use direct curl:

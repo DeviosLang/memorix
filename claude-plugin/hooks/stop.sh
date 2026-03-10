@@ -28,7 +28,16 @@ transcript = data.get('transcript', [])
 msg = ''
 for turn in reversed(transcript):
     if turn.get('role') == 'assistant':
-        msg = turn.get('content', '')
+        content = turn.get('content', '')
+        if isinstance(content, list):
+            # Extract text blocks from structured content array
+            msg = ' '.join(
+                block.get('text', '')
+                for block in content
+                if isinstance(block, dict) and block.get('type') == 'text'
+            )
+        else:
+            msg = content or ''
         break
 # Fallback: try legacy field name
 if not msg:

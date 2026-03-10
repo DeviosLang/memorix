@@ -58,7 +58,7 @@ No embedding config? Keyword search works immediately. Add vectors later — no 
 ## Install for OpenClaw
 
 ```bash
-npm install memorix-openclaw
+openclaw plugins install @memorix/memorix
 ```
 
 Add to `openclaw.json`:
@@ -72,7 +72,7 @@ Add to `openclaw.json`:
         "enabled": true,
         "config": {
           "apiUrl": "http://your-server:8080",
-          "userToken": "mnemo_your_token"
+          "tenantID": "<your-space-id>"
         }
       }
     }
