@@ -216,3 +216,117 @@ func (s *Server) extractFacts(w http.ResponseWriter, r *http.Request) {
 
 	respond(w, http.StatusOK, result)
 }
+
+// batchReconcileRequest is the request body for batch reconciliation.
+type batchReconcileRequest struct {
+	Facts []domain.ReconcileRequest `json:"facts"`
+}
+
+// batchReconcile handles POST /user-profile/reconcile
+// It reconciles multiple facts with LLM-driven conflict resolution.
+func (s *Server) batchReconcile(w http.ResponseWriter, r *http.Request) {
+	var req batchReconcileRequest
+	if err := decode(r, &req); err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	if len(req.Facts) == 0 {
+		respondError(w, http.StatusBadRequest, "facts array is required")
+		return
+	}
+
+	auth := authInfo(r)
+	svc := s.resolveReconcilerServices(auth)
+
+	result, err := svc.BatchReconcile(r.Context(), req.Facts)
+	if err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}
+
+// auditLogListResponse is the response for listing audit logs.
+type auditLogListResponse struct {
+	Logs   []domain.ReconcileAuditLog `json:"logs"`
+	Total  int                        `json:"total"`
+	Limit  int                        `json:"limit"`
+	Offset int                        `json:"offset"`
+}
+
+// listAuditLogs handles GET /user-profile/reconcile/audit
+// It lists audit logs for a user.
+func (s *Server) listAuditLogs(w http.ResponseWriter, r *http.Request) {
+	auth := authInfo(r)
+	svc := s.resolveReconcilerServices(auth)
+	q := r.URL.Query()
+
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	offset, _ := strconv.Atoi(q.Get("offset"))
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	userID := q.Get("user_id")
+	if userID == "" {
+		respondError(w, http.StatusBadRequest, "user_id is required")
+		return
+	}
+
+	logs, err := svc.GetAuditLogs(r.Context(), userID, limit, offset)
+	if err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	if logs == nil {
+		logs = []domain.ReconcileAuditLog{}
+	}
+
+	respond(w, http.StatusOK, auditLogListResponse{
+		Logs:   logs,
+		Total:  len(logs),
+		Limit:  limit,
+		Offset: offset,
+	})
+}
+
+// listFactAuditLogs handles GET /user-profile/reconcile/audit/{fact_id}
+// It lists audit logs for a specific fact.
+func (s *Server) listFactAuditLogs(w http.ResponseWriter, r *http.Request) {
+	auth := authInfo(r)
+	svc := s.resolveReconcilerServices(auth)
+	q := r.URL.Query()
+	factID := chi.URLParam(r, "fact_id")
+
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	offset, _ := strconv.Atoi(q.Get("offset"))
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	logs, err := svc.GetFactAuditLogs(r.Context(), factID, limit, offset)
+	if err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	if logs == nil {
+		logs = []domain.ReconcileAuditLog{}
+	}
+
+	respond(w, http.StatusOK, auditLogListResponse{
+		Logs:   logs,
+		Total:  len(logs),
+		Limit:  limit,
+		Offset: offset,
+	})
+}
