@@ -59,6 +59,7 @@ func NewServer(
 	tokenizerModel string,
 	systemPromptReservedTokens int,
 	memoryReservedTokens int,
+	metadataReservedTokens int,
 ) *Server {
 	// Create tokenizer based on configuration
 	tok, err := tokenizer.New(tokenizer.Config{
@@ -75,6 +76,7 @@ func NewServer(
 		MaxTokens:                  maxContextTokens,
 		SystemPromptReservedTokens: systemPromptReservedTokens,
 		MemoryReservedTokens:       memoryReservedTokens,
+		MetadataReservedTokens:     metadataReservedTokens,
 		Tokenizer:                  tok,
 	}
 

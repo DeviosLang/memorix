@@ -72,6 +72,10 @@ type Config struct {
 	// MemoryReservedTokens reserves tokens for memory injection area.
 	// Default is 2000 tokens.
 	MemoryReservedTokens int
+
+	// MetadataReservedTokens reserves tokens for session metadata injection.
+	// Default is 200 tokens (per acceptance criteria).
+	MetadataReservedTokens int
 }
 
 func Load() (*Config, error) {
@@ -110,6 +114,7 @@ func Load() (*Config, error) {
 		TokenizerModel:        envOr("MNEMO_TOKENIZER_MODEL", "gpt-4"),
 		SystemPromptReservedTokens:  envInt("MNEMO_SYSTEM_PROMPT_RESERVED_TOKENS", 500),
 		MemoryReservedTokens:  envInt("MNEMO_MEMORY_RESERVED_TOKENS", 2000),
+		MetadataReservedTokens: envInt("MNEMO_METADATA_RESERVED_TOKENS", 200),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {

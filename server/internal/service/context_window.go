@@ -19,6 +19,10 @@ type ContextWindowConfig struct {
 	// MemoryReservedTokens reserves tokens for memory injection area.
 	MemoryReservedTokens int
 
+	// MetadataReservedTokens reserves tokens for session metadata injection.
+	// Default is 200 tokens (per acceptance criteria).
+	MetadataReservedTokens int
+
 	// Tokenizer is the tokenizer to use for counting tokens.
 	Tokenizer tokenizer.Tokenizer
 }
@@ -29,6 +33,7 @@ func DefaultContextWindowConfig() ContextWindowConfig {
 		MaxTokens:                  8192,
 		SystemPromptReservedTokens: 500,
 		MemoryReservedTokens:       2000,
+		MetadataReservedTokens:     200,
 		Tokenizer:                  tokenizer.NewDefault(),
 	}
 }
@@ -36,9 +41,10 @@ func DefaultContextWindowConfig() ContextWindowConfig {
 // ContextWindow manages token-based sliding window truncation for conversation context.
 // It ensures that:
 // 1. System prompts are always preserved (not truncated)
-// 2. Memory injection areas are always preserved (not truncated)
-// 3. User/assistant message pairs are truncated from the oldest first
-// 4. The total token count stays within the configured limit
+// 2. Session metadata is always preserved (not truncated) - injected once per session
+// 3. Memory injection areas are always preserved (not truncated)
+// 4. User/assistant message pairs are truncated from the oldest first
+// 5. The total token count stays within the configured limit
 type ContextWindow struct {
 	config ContextWindowConfig
 }
@@ -57,12 +63,16 @@ func NewContextWindow(config ContextWindowConfig) *ContextWindow {
 	if config.MemoryReservedTokens <= 0 {
 		config.MemoryReservedTokens = 2000
 	}
+	if config.MetadataReservedTokens <= 0 {
+		config.MetadataReservedTokens = 200
+	}
 	return &ContextWindow{config: config}
 }
 
 // ContextMessage represents a message in the conversation context.
 type ContextMessage struct {
-	// Role is the message role: "system", "user", "assistant", or "memory".
+	// Role is the message role: "system", "user", "assistant", "metadata", or "memory".
+	// "metadata" is a special role for session metadata that is never truncated.
 	// "memory" is a special role for injected memory context that is never truncated.
 	Role string `json:"role"`
 
@@ -95,11 +105,11 @@ type TruncationResult struct {
 }
 
 // Truncate applies the sliding window truncation strategy to the messages.
-// It preserves system messages and memory injections, truncating user/assistant
+// It preserves system messages, metadata, and memory injections, truncating user/assistant
 // pairs from the oldest first to fit within the token limit.
 func (cw *ContextWindow) Truncate(messages []ContextMessage) *TruncationResult {
-	// Calculate available tokens after reserving space for system and memory
-	reservedTokens := cw.config.SystemPromptReservedTokens + cw.config.MemoryReservedTokens
+	// Calculate available tokens after reserving space for system, metadata, and memory
+	reservedTokens := cw.config.SystemPromptReservedTokens + cw.config.MemoryReservedTokens + cw.config.MetadataReservedTokens
 	availableTokens := cw.config.MaxTokens - reservedTokens
 	if availableTokens < 100 {
 		availableTokens = 100 // Minimum usable context
@@ -107,6 +117,7 @@ func (cw *ContextWindow) Truncate(messages []ContextMessage) *TruncationResult {
 
 	// Separate messages into categories
 	var systemMessages []ContextMessage
+	var metadataMessages []ContextMessage
 	var memoryMessages []ContextMessage
 	var conversationMessages []ContextMessage
 
@@ -114,6 +125,8 @@ func (cw *ContextWindow) Truncate(messages []ContextMessage) *TruncationResult {
 		switch msg.Role {
 		case "system":
 			systemMessages = append(systemMessages, msg)
+		case "metadata":
+			metadataMessages = append(metadataMessages, msg)
 		case "memory":
 			memoryMessages = append(memoryMessages, msg)
 		default:
@@ -123,13 +136,14 @@ func (cw *ContextWindow) Truncate(messages []ContextMessage) *TruncationResult {
 
 	// Calculate tokens for preserved messages
 	systemTokens := cw.countTokens(systemMessages)
+	metadataTokens := cw.countTokens(metadataMessages)
 	memoryTokens := cw.countTokens(memoryMessages)
 
-	// Adjust available tokens based on actual system/memory usage
-	availableForConversation := availableTokens - systemTokens - memoryTokens
+	// Adjust available tokens based on actual system/metadata/memory usage
+	availableForConversation := availableTokens - systemTokens - metadataTokens - memoryTokens
 	if availableForConversation < 100 {
 		// If reserved space is already exceeded, try to still fit some conversation
-		availableForConversation = cw.config.MaxTokens/4 - systemTokens - memoryTokens
+		availableForConversation = cw.config.MaxTokens/4 - systemTokens - metadataTokens - memoryTokens
 		if availableForConversation < 50 {
 			availableForConversation = 50
 		}
@@ -142,8 +156,10 @@ func (cw *ContextWindow) Truncate(messages []ContextMessage) *TruncationResult {
 	truncated, dropped := cw.truncateConversation(conversationMessages, availableForConversation)
 
 	// Build final message list
-	result := make([]ContextMessage, 0, len(systemMessages)+len(memoryMessages)+len(truncated))
+	// Order: system -> metadata -> memory -> conversation
+	result := make([]ContextMessage, 0, len(systemMessages)+len(metadataMessages)+len(memoryMessages)+len(truncated))
 	result = append(result, systemMessages...)
+	result = append(result, metadataMessages...)
 	result = append(result, memoryMessages...)
 	result = append(result, truncated...)
 
