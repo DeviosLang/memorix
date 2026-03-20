@@ -164,6 +164,51 @@ curl -X PUT http://localhost:8080/v1alpha1/memorix/<tenantID>/memories/<id> \
 curl -X DELETE http://localhost:8080/v1alpha1/memorix/<tenantID>/memories/<id>
 ```
 
+### User Profile Facts
+
+User profile facts are structured long-term facts about users, supporting precise CRUD operations without vector search. Each user can store up to 200 facts, with automatic cleanup of oldest low-confidence facts when capacity is reached.
+
+```bash
+# Create a fact
+curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "category": "personal",
+    "key": "name",
+    "value": "John Doe",
+    "source": "explicit",
+    "confidence": 1.0
+  }'
+
+# List facts (filter by user_id required)
+curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts?user_id=user-123"
+
+# List facts by category
+curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts?user_id=user-123&category=preference"
+
+# Get a single fact
+curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts/<fact_id>"
+
+# Update a fact
+curl -X PUT http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts/<fact_id> \
+  -H "Content-Type: application/json" \
+  -d '{"value": "Jane Doe"}'
+
+# Delete a fact
+curl -X DELETE http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts/<fact_id>"
+```
+
+**Fact Categories:**
+- `personal` - Name, role, location, etc.
+- `preference` - Language, framework, style preferences
+- `goal` - User goals and objectives
+- `skill` - Known skills and expertise
+
+**Fact Sources:**
+- `explicit` - User explicitly provided (confidence typically 1.0)
+- `inferred` - Model inferred from conversation (confidence 0.0-1.0)
+
 ## Build
 
 ```bash

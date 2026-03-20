@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/devioslang/memorix/server/internal/domain"
 	"github.com/devioslang/memorix/server/internal/repository"
 	"github.com/devioslang/memorix/server/internal/tenant"
+	"github.com/go-sql-driver/mysql"
 )
 
 const tenantMemorySchemaBase = `CREATE TABLE IF NOT EXISTS memories (
@@ -35,6 +35,23 @@ const tenantMemorySchemaBase = `CREATE TABLE IF NOT EXISTS memories (
 	    INDEX idx_agent               (agent_id),
 	    INDEX idx_session             (session_id),
 	    INDEX idx_updated             (updated_at)
+	)`
+
+const tenantUserProfileFactsSchema = `CREATE TABLE IF NOT EXISTS user_profile_facts (
+	    fact_id           VARCHAR(36)     PRIMARY KEY,
+	    user_id           VARCHAR(100)    NOT NULL,
+	    category          VARCHAR(20)     NOT NULL COMMENT 'personal|preference|goal|skill',
+	    ` + "`key`" + `             VARCHAR(100)    NOT NULL,
+	    value             TEXT            NOT NULL,
+	    source            VARCHAR(20)     NOT NULL COMMENT 'explicit|inferred',
+	    confidence        DECIMAL(3,2)    NOT NULL DEFAULT 1.0 COMMENT '0.00-1.00, confidence for inferred facts',
+	    created_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+	    updated_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	    last_accessed_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP COMMENT 'Used for capacity-based cleanup',
+	    INDEX idx_user_facts (user_id),
+	    INDEX idx_user_category (user_id, category),
+	    INDEX idx_user_key (user_id, ` + "`key`" + `),
+	    INDEX idx_accessed_confidence (user_id, last_accessed_at, confidence)
 	)`
 
 func buildMemorySchema(autoModel string, autoDims int) string {
@@ -191,6 +208,10 @@ func (s *TenantService) initSchema(ctx context.Context, t *domain.Tenant) error 
 		if err != nil && !isIndexExistsError(err) {
 			return fmt.Errorf("init tenant schema: fulltext index: %w", err)
 		}
+	}
+	// Create user_profile_facts table for structured user profile storage.
+	if _, err := db.ExecContext(ctx, tenantUserProfileFactsSchema); err != nil {
+		return fmt.Errorf("init tenant schema: user_profile_facts: %w", err)
 	}
 	return nil
 }

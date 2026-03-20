@@ -38,6 +38,9 @@ type Server struct {
 	// Context window management
 	tokenizer           tokenizer.Tokenizer
 	contextWindowConfig service.ContextWindowConfig
+
+	// User profile configuration
+	maxFactsPerUser int
 }
 
 // NewServer creates a new HTTP handler server.
@@ -59,8 +62,8 @@ func NewServer(
 ) *Server {
 	// Create tokenizer based on configuration
 	tok, err := tokenizer.New(tokenizer.Config{
-		Type:    tokenizer.TokenizerType(tokenizerType),
-		Model:   tokenizerModel,
+		Type:  tokenizer.TokenizerType(tokenizerType),
+		Model: tokenizerModel,
 	})
 	if err != nil {
 		logger.Warn("failed to create tokenizer, using default", "err", err)
@@ -87,14 +90,16 @@ func NewServer(
 		logger:              logger,
 		tokenizer:           tok,
 		contextWindowConfig: contextConfig,
+		maxFactsPerUser:     200, // Default capacity per user
 	}
 }
 
 // resolvedSvc holds the correct service instances for a request.
 // Services are always backed by the tenant's dedicated DB.
 type resolvedSvc struct {
-	memory *service.MemoryService
-	ingest *service.IngestService
+	memory      *service.MemoryService
+	ingest      *service.IngestService
+	userProfile *service.UserProfileService
 }
 
 type tenantSvcKey string
@@ -107,9 +112,11 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 			return cached.(resolvedSvc)
 		}
 		memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
+		factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
 		svc := resolvedSvc{
-			memory: service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
-			ingest: service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
+			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
+			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
+			userProfile: service.NewUserProfileService(factRepo, s.maxFactsPerUser),
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -119,12 +126,19 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		return cached.(resolvedSvc)
 	}
 	memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
+	factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
 	svc := resolvedSvc{
-		memory: service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
-		ingest: service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
+		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
+		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
+		userProfile: service.NewUserProfileService(factRepo, s.maxFactsPerUser),
 	}
 	s.svcCache.Store(key, svc)
 	return svc
+}
+
+// resolveUserProfileServices returns the UserProfileService for a request.
+func (s *Server) resolveUserProfileServices(auth *domain.AuthInfo) *service.UserProfileService {
+	return s.resolveServices(auth).userProfile
 }
 
 // Router builds the chi router with all routes and middleware.
@@ -165,6 +179,13 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Post("/imports", s.createTask)
 		r.Get("/imports", s.listTasks)
 		r.Get("/imports/{id}", s.getTask)
+
+		// User Profile Facts (structured long-term facts about users).
+		r.Post("/user-profile/facts", s.createFact)
+		r.Get("/user-profile/facts", s.listFacts)
+		r.Get("/user-profile/facts/{id}", s.getFact)
+		r.Put("/user-profile/facts/{id}", s.updateFact)
+		r.Delete("/user-profile/facts/{id}", s.deleteFact)
 
 	})
 

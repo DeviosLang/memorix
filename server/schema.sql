@@ -128,3 +128,26 @@ CREATE TABLE IF NOT EXISTS upload_tasks (
   INDEX idx_upload_tenant (tenant_id),
   INDEX idx_upload_poll (status, created_at)
 );
+
+-- User profile facts (structured long-term facts about users).
+-- Based on ChatGPT's "third layer" user memory - structured profile storage.
+CREATE TABLE IF NOT EXISTS user_profile_facts (
+  fact_id           VARCHAR(36)     PRIMARY KEY,
+  user_id           VARCHAR(100)    NOT NULL,
+  category          VARCHAR(20)     NOT NULL
+                      COMMENT 'personal|preference|goal|skill',
+  `key`             VARCHAR(100)    NOT NULL,
+  value             TEXT            NOT NULL,
+  source            VARCHAR(20)     NOT NULL
+                      COMMENT 'explicit|inferred',
+  confidence        DECIMAL(3,2)    NOT NULL DEFAULT 1.0
+                      COMMENT '0.00-1.00, confidence for inferred facts',
+  created_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  last_accessed_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
+                      COMMENT 'Used for capacity-based cleanup',
+  INDEX idx_user_facts (user_id),
+  INDEX idx_user_category (user_id, category),
+  INDEX idx_user_key (user_id, `key`),
+  INDEX idx_accessed_confidence (user_id, last_accessed_at, confidence)
+);
