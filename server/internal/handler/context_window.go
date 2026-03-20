@@ -220,3 +220,111 @@ func (s *Server) countTokens(w http.ResponseWriter, r *http.Request) {
 
 	respond(w, http.StatusOK, countTokensResponse{TokenCount: count})
 }
+
+// buildContextRequest is the request body for the context builder endpoint.
+type buildContextRequest struct {
+	// SessionID is the current session identifier.
+	SessionID string `json:"session_id,omitempty"`
+
+	// UserID is the user identifier for fetching user memories/facts.
+	UserID string `json:"user_id,omitempty"`
+
+	// SystemInstructions contains the base system prompt/instructions.
+	SystemInstructions string `json:"system_instructions,omitempty"`
+
+	// SessionMetadata contains session-level metadata.
+	SessionMetadata *domain.SessionMetadata `json:"session_metadata,omitempty"`
+
+	// ConversationSummary is a summary of past conversations.
+	ConversationSummary string `json:"conversation_summary,omitempty"`
+
+	// CurrentMessages contains the current session messages.
+	CurrentMessages []domain.ContextMessage `json:"current_messages,omitempty"`
+
+	// MaxTokens is the maximum total tokens allowed.
+	// If not set, uses the default from configuration.
+	MaxTokens int `json:"max_tokens,omitempty"`
+}
+
+// buildContextResponse is the response from the context builder endpoint.
+type buildContextResponse struct {
+	// Prompt is the assembled system prompt.
+	Prompt string `json:"prompt"`
+
+	// TotalTokens is the total token count of the assembled prompt.
+	TotalTokens int `json:"total_tokens"`
+
+	// MaxTokens is the maximum tokens that were allowed.
+	MaxTokens int `json:"max_tokens"`
+
+	// LayerStats contains token statistics for each layer.
+	LayerStats []domain.LayerStats `json:"layer_stats"`
+
+	// Truncated indicates whether any truncation occurred.
+	Truncated bool `json:"truncated"`
+
+	// TruncationDetails contains details about what was truncated.
+	TruncationDetails []domain.TruncationDetail `json:"truncation_details,omitempty"`
+}
+
+// buildContext handles POST requests to build a context prompt from multiple layers.
+// It assembles content from system instructions, session metadata, user memories,
+// conversation summaries, and current session messages within the token budget.
+func (s *Server) buildContext(w http.ResponseWriter, r *http.Request) {
+	var req buildContextRequest
+	if err := decode(r, &req); err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	auth := authInfo(r)
+	svc := s.resolveServices(auth)
+
+	// Build the context request
+	buildReq := &domain.BuildContextRequest{
+		SessionID:           req.SessionID,
+		UserID:              req.UserID,
+		SystemInstructions:  req.SystemInstructions,
+		SessionMetadata:     req.SessionMetadata,
+		ConversationSummary: req.ConversationSummary,
+		CurrentMessages:     req.CurrentMessages,
+		MaxTokens:           req.MaxTokens,
+	}
+
+	// Fetch user memories if UserID is provided
+	if req.UserID != "" {
+		memories, _, err := svc.memory.Search(r.Context(), domain.MemoryFilter{
+			AgentID: req.UserID,
+			Limit:   20,
+		})
+		if err == nil && len(memories) > 0 {
+			buildReq.UserMemories = memories
+		}
+
+		// Fetch user profile facts
+		facts, err := svc.userProfile.GetFactsByUser(r.Context(), req.UserID)
+		if err == nil && len(facts) > 0 {
+			buildReq.UserProfileFacts = facts
+		}
+	}
+
+	// Create context builder and build the prompt
+	builder := service.NewContextBuilder(s.contextBuilderConfig)
+	result, err := builder.Build(buildReq)
+	if err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	// Build response
+	resp := buildContextResponse{
+		Prompt:            result.Prompt,
+		TotalTokens:       result.TotalTokens,
+		MaxTokens:         result.MaxTokens,
+		LayerStats:        result.LayerStats,
+		Truncated:         result.Truncated,
+		TruncationDetails: result.TruncationDetails,
+	}
+
+	respond(w, http.StatusOK, resp)
+}
