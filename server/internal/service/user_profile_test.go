@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/devioslang/memorix/server/internal/domain"
@@ -139,6 +140,28 @@ func (m *mockUserProfileFactRepo) DeleteOldestLowConfidence(ctx context.Context,
 
 func (m *mockUserProfileFactRepo) TouchLastAccessed(ctx context.Context, factID string) error {
 	return nil
+}
+
+func (m *mockUserProfileFactRepo) GetByKey(ctx context.Context, userID string, category domain.FactCategory, key string) (*domain.UserProfileFact, error) {
+	for _, f := range m.facts {
+		if f.UserID == userID && f.Category == category && f.Key == key {
+			return f, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (m *mockUserProfileFactRepo) SearchByValue(ctx context.Context, userID string, value string, limit int) ([]domain.UserProfileFact, error) {
+	var result []domain.UserProfileFact
+	for _, f := range m.facts {
+		if f.UserID == userID && strings.Contains(strings.ToLower(f.Value), strings.ToLower(value)) {
+			result = append(result, *f)
+			if len(result) >= limit {
+				break
+			}
+		}
+	}
+	return result, nil
 }
 
 func TestValidateCreateFactInput(t *testing.T) {

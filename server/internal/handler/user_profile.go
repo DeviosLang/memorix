@@ -180,3 +180,39 @@ func (s *Server) deleteFact(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// extractFactsRequest is the request body for extracting facts from conversation.
+type extractFactsRequest struct {
+	Messages  []service.IngestMessage `json:"messages"`
+	UserID    string                  `json:"user_id"`
+	SessionID string                  `json:"session_id,omitempty"`
+}
+
+// extractFacts handles POST /user-profile/extract
+// It extracts structured facts from conversation content using LLM.
+func (s *Server) extractFacts(w http.ResponseWriter, r *http.Request) {
+	var req extractFactsRequest
+	if err := decode(r, &req); err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	auth := authInfo(r)
+	svc := s.resolveExtractorServices(auth)
+
+	extractReq := service.ExtractRequest{
+		Messages:  req.Messages,
+		UserID:    req.UserID,
+		SessionID: req.SessionID,
+	}
+
+	// Run extraction synchronously for now
+	// Can be made async if needed for large conversations
+	result, err := svc.Extract(r.Context(), extractReq)
+	if err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}

@@ -230,6 +230,47 @@ func (r *UserProfileFactRepo) TouchLastAccessed(ctx context.Context, factID stri
 	return nil
 }
 
+// GetByKey retrieves a fact by user_id, category, and key.
+// Returns ErrNotFound if no matching fact exists.
+func (r *UserProfileFactRepo) GetByKey(ctx context.Context, userID string, category domain.FactCategory, key string) (*domain.UserProfileFact, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT `+factAllColumns+` FROM user_profile_facts WHERE user_id = ? AND category = ? AND `+"`key`"+` = ?`,
+		userID, string(category), key,
+	)
+	return scanUserProfileFact(row)
+}
+
+// SearchByValue performs a fuzzy search for facts with similar values.
+// Uses LIKE for basic text similarity matching.
+// Returns facts where the value contains similar text (used for deduplication).
+func (r *UserProfileFactRepo) SearchByValue(ctx context.Context, userID string, value string, limit int) ([]domain.UserProfileFact, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Use LIKE with wildcards for basic fuzzy matching
+	// Also search for facts where the value contains key terms from the input
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+factAllColumns+` FROM user_profile_facts
+		 WHERE user_id = ? AND (
+		   value LIKE ? OR
+		   ? LIKE CONCAT('%', value, '%')
+		 )
+		 ORDER BY updated_at DESC
+		 LIMIT ?`,
+		userID,
+		"%"+value+"%",
+		value,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("search user facts by value: %w", err)
+	}
+	defer rows.Close()
+
+	return scanUserProfileFacts(rows)
+}
+
 func (r *UserProfileFactRepo) buildFilterConds(f domain.UserProfileFactFilter) ([]string, []any) {
 	conds := []string{}
 	args := []any{}
