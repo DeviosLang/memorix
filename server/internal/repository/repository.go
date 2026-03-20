@@ -87,4 +87,12 @@ type UserProfileFactRepo interface {
 
 	// TouchLastAccessed updates the last_accessed_at timestamp for a fact.
 	TouchLastAccessed(ctx context.Context, factID string) error
+
+	// GetByKey retrieves a fact by user_id, category, and key.
+	// Returns ErrNotFound if no matching fact exists.
+	GetByKey(ctx context.Context, userID string, category domain.FactCategory, key string) (*domain.UserProfileFact, error)
+
+	// SearchByValue performs a fuzzy search for facts with similar values.
+	// Returns facts where the value is similar to the query (used for deduplication).
+	SearchByValue(ctx context.Context, userID string, value string, limit int) ([]domain.UserProfileFact, error)
 }

@@ -122,6 +122,7 @@ type resolvedSvc struct {
 	memory      *service.MemoryService
 	ingest      *service.IngestService
 	userProfile *service.UserProfileService
+	extractor   *service.ExtractorService
 }
 
 type tenantSvcKey string
@@ -135,10 +136,12 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		}
 		memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
 		factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
+		userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
 		svc := resolvedSvc{
 			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
-			userProfile: service.NewUserProfileService(factRepo, s.maxFactsPerUser),
+			userProfile: userProf,
+			extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -149,10 +152,12 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 	}
 	memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
 	factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
+	userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
 	svc := resolvedSvc{
 		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
-		userProfile: service.NewUserProfileService(factRepo, s.maxFactsPerUser),
+		userProfile: userProf,
+		extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
 	}
 	s.svcCache.Store(key, svc)
 	return svc
@@ -161,6 +166,11 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 // resolveUserProfileServices returns the UserProfileService for a request.
 func (s *Server) resolveUserProfileServices(auth *domain.AuthInfo) *service.UserProfileService {
 	return s.resolveServices(auth).userProfile
+}
+
+// resolveExtractorServices returns the ExtractorService for a request.
+func (s *Server) resolveExtractorServices(auth *domain.AuthInfo) *service.ExtractorService {
+	return s.resolveServices(auth).extractor
 }
 
 // Router builds the chi router with all routes and middleware.
@@ -209,6 +219,9 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Get("/user-profile/facts/{id}", s.getFact)
 		r.Put("/user-profile/facts/{id}", s.updateFact)
 		r.Delete("/user-profile/facts/{id}", s.deleteFact)
+
+		// Memory Extraction (LLM-driven fact extraction from conversation).
+		r.Post("/user-profile/extract", s.extractFacts)
 
 	})
 
