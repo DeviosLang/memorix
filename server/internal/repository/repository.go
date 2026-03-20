@@ -96,3 +96,26 @@ type UserProfileFactRepo interface {
 	// Returns facts where the value is similar to the query (used for deduplication).
 	SearchByValue(ctx context.Context, userID string, value string, limit int) ([]domain.UserProfileFact, error)
 }
+
+// ReconcileAuditRepo manages audit logs for memory reconciliation decisions.
+// Every time the LLM reconciler makes a decision, an audit log is created
+// for traceability and debugging.
+type ReconcileAuditRepo interface {
+	// Create stores a new reconciliation audit log.
+	Create(ctx context.Context, log *domain.ReconcileAuditLog) error
+
+	// GetByID retrieves an audit log by its ID.
+	GetByID(ctx context.Context, logID string) (*domain.ReconcileAuditLog, error)
+
+	// ListByUserID retrieves all audit logs for a user, ordered by created_at desc.
+	ListByUserID(ctx context.Context, userID string, limit, offset int) ([]domain.ReconcileAuditLog, error)
+
+	// ListByFactID retrieves all audit logs for a specific fact, ordered by created_at desc.
+	ListByFactID(ctx context.Context, factID string, limit, offset int) ([]domain.ReconcileAuditLog, error)
+
+	// List returns audit logs based on filter criteria.
+	List(ctx context.Context, f domain.ReconcileAuditFilter) (logs []domain.ReconcileAuditLog, total int, err error)
+
+	// DeleteByUserID deletes all audit logs for a user (used when user is deleted).
+	DeleteByUserID(ctx context.Context, userID string) error
+}

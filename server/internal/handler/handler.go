@@ -123,6 +123,7 @@ type resolvedSvc struct {
 	ingest      *service.IngestService
 	userProfile *service.UserProfileService
 	extractor   *service.ExtractorService
+	reconciler  *service.ReconcilerService
 }
 
 type tenantSvcKey string
@@ -136,12 +137,15 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		}
 		memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
 		factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
+		auditRepo := tidb.NewReconcileAuditRepo(auth.TenantDB)
 		userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
+		reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
 		svc := resolvedSvc{
 			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			userProfile: userProf,
 			extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
+			reconciler:  reconciler,
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -152,12 +156,15 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 	}
 	memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
 	factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
+	auditRepo := tidb.NewReconcileAuditRepo(auth.TenantDB)
 	userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
+	reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
 	svc := resolvedSvc{
 		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		userProfile: userProf,
 		extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
+		reconciler:  reconciler,
 	}
 	s.svcCache.Store(key, svc)
 	return svc
@@ -171,6 +178,11 @@ func (s *Server) resolveUserProfileServices(auth *domain.AuthInfo) *service.User
 // resolveExtractorServices returns the ExtractorService for a request.
 func (s *Server) resolveExtractorServices(auth *domain.AuthInfo) *service.ExtractorService {
 	return s.resolveServices(auth).extractor
+}
+
+// resolveReconcilerServices returns the ReconcilerService for a request.
+func (s *Server) resolveReconcilerServices(auth *domain.AuthInfo) *service.ReconcilerService {
+	return s.resolveServices(auth).reconciler
 }
 
 // Router builds the chi router with all routes and middleware.
@@ -222,6 +234,11 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 
 		// Memory Extraction (LLM-driven fact extraction from conversation).
 		r.Post("/user-profile/extract", s.extractFacts)
+
+		// Memory Reconciliation (LLM-driven conflict resolution).
+		r.Post("/user-profile/reconcile", s.batchReconcile)
+		r.Get("/user-profile/reconcile/audit", s.listAuditLogs)
+		r.Get("/user-profile/reconcile/audit/{fact_id}", s.listFactAuditLogs)
 
 	})
 

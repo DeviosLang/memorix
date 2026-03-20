@@ -151,3 +151,29 @@ CREATE TABLE IF NOT EXISTS user_profile_facts (
   INDEX idx_user_key (user_id, `key`),
   INDEX idx_accessed_confidence (user_id, last_accessed_at, confidence)
 );
+
+-- Reconciliation audit logs (tracks LLM-driven memory conflict resolution).
+-- Every reconciliation decision is logged for traceability and debugging.
+CREATE TABLE IF NOT EXISTS reconcile_audit_logs (
+  log_id            VARCHAR(36)     PRIMARY KEY,
+  user_id           VARCHAR(100)    NOT NULL,
+  fact_id           VARCHAR(36)     NOT NULL
+                      COMMENT 'The fact ID that was reconciled',
+  category          VARCHAR(20)     NOT NULL
+                      COMMENT 'personal|preference|goal|skill',
+  `key`             VARCHAR(100)    NOT NULL,
+  old_value         TEXT            NULL
+                      COMMENT 'Previous value (empty for new facts)',
+  new_value         TEXT            NOT NULL
+                      COMMENT 'Incoming value',
+  decision          VARCHAR(20)     NOT NULL
+                      COMMENT 'UPDATE|APPEND|IGNORE',
+  reason            TEXT            NULL
+                      COMMENT 'LLM explanation for the decision',
+  source            VARCHAR(100)    NULL
+                      COMMENT 'Agent name that provided the new fact',
+  created_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_audit (user_id, created_at DESC),
+  INDEX idx_fact_audit (fact_id, created_at DESC),
+  INDEX idx_category_audit (user_id, category, created_at DESC)
+);
