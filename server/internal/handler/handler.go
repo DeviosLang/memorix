@@ -44,6 +44,9 @@ type Server struct {
 
 	// User profile configuration
 	maxFactsPerUser int
+
+	// Conversation summary configuration
+	maxSummariesPerUser int
 }
 
 // NewServer creates a new HTTP handler server.
@@ -113,6 +116,7 @@ func NewServer(
 		contextWindowConfig:  contextConfig,
 		contextBuilderConfig: builderConfig,
 		maxFactsPerUser:      200, // Default capacity per user
+		maxSummariesPerUser:  20,  // Default sliding window size per user
 	}
 }
 
@@ -124,6 +128,7 @@ type resolvedSvc struct {
 	userProfile *service.UserProfileService
 	extractor   *service.ExtractorService
 	reconciler  *service.ReconcilerService
+	summarizer  *service.ConversationSummarizerService
 }
 
 type tenantSvcKey string
@@ -138,14 +143,17 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
 		factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
 		auditRepo := tidb.NewReconcileAuditRepo(auth.TenantDB)
+		summaryRepo := tidb.NewConversationSummaryRepo(auth.TenantDB)
 		userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
 		reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
+		summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
 		svc := resolvedSvc{
 			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			userProfile: userProf,
 			extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
 			reconciler:  reconciler,
+			summarizer:  summarizer,
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -157,14 +165,17 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 	memRepo := tidb.NewMemoryRepo(auth.TenantDB, s.autoModel, s.ftsEnabled)
 	factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
 	auditRepo := tidb.NewReconcileAuditRepo(auth.TenantDB)
+	summaryRepo := tidb.NewConversationSummaryRepo(auth.TenantDB)
 	userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
 	reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
+	summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
 	svc := resolvedSvc{
 		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		userProfile: userProf,
 		extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
 		reconciler:  reconciler,
+		summarizer:  summarizer,
 	}
 	s.svcCache.Store(key, svc)
 	return svc
@@ -183,6 +194,11 @@ func (s *Server) resolveExtractorServices(auth *domain.AuthInfo) *service.Extrac
 // resolveReconcilerServices returns the ReconcilerService for a request.
 func (s *Server) resolveReconcilerServices(auth *domain.AuthInfo) *service.ReconcilerService {
 	return s.resolveServices(auth).reconciler
+}
+
+// resolveSummarizerServices returns the ConversationSummarizerService for a request.
+func (s *Server) resolveSummarizerServices(auth *domain.AuthInfo) *service.ConversationSummarizerService {
+	return s.resolveServices(auth).summarizer
 }
 
 // Router builds the chi router with all routes and middleware.
@@ -239,6 +255,12 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Post("/user-profile/reconcile", s.batchReconcile)
 		r.Get("/user-profile/reconcile/audit", s.listAuditLogs)
 		r.Get("/user-profile/reconcile/audit/{fact_id}", s.listFactAuditLogs)
+
+		// Conversation Summaries (recent conversation summary layer).
+		r.Post("/summaries", s.summarize)
+		r.Get("/summaries", s.listSummaries)
+		r.Get("/summaries/{id}", s.getSummary)
+		r.Delete("/summaries/{id}", s.deleteSummary)
 
 	})
 
