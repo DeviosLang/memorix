@@ -65,3 +65,26 @@ type UploadTaskRepo interface {
 	FetchPending(ctx context.Context, limit int) ([]domain.UploadTask, error)
 	ResetProcessing(ctx context.Context, staleTimeout time.Duration) (int64, error)
 }
+
+// UserProfileFactRepo manages user profile facts (structured long-term facts about users).
+// This implements the "third layer" of ChatGPT's memory system - structured user profile storage.
+type UserProfileFactRepo interface {
+	Create(ctx context.Context, fact *domain.UserProfileFact) error
+	GetByID(ctx context.Context, factID string) (*domain.UserProfileFact, error)
+	GetByUserID(ctx context.Context, userID string) ([]domain.UserProfileFact, error)
+	GetByUserIDAndCategory(ctx context.Context, userID string, category domain.FactCategory) ([]domain.UserProfileFact, error)
+	List(ctx context.Context, f domain.UserProfileFactFilter) (facts []domain.UserProfileFact, total int, err error)
+	Update(ctx context.Context, fact *domain.UserProfileFact) error
+	Delete(ctx context.Context, factID string) error
+	DeleteByUserID(ctx context.Context, userID string) error
+
+	// CountByUserID returns the total number of facts for a user.
+	CountByUserID(ctx context.Context, userID string) (int, error)
+
+	// DeleteOldestLowConfidence deletes facts that are oldest and have lowest confidence.
+	// Used when user exceeds capacity limit. Returns number of facts deleted.
+	DeleteOldestLowConfidence(ctx context.Context, userID string, count int) (int64, error)
+
+	// TouchLastAccessed updates the last_accessed_at timestamp for a fact.
+	TouchLastAccessed(ctx context.Context, factID string) error
+}
