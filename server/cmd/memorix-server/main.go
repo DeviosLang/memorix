@@ -112,6 +112,7 @@ func main() {
 		cfg.TokenizerModel,
 		cfg.SystemPromptReservedTokens,
 		cfg.MemoryReservedTokens,
+		cfg.MetadataReservedTokens,
 	)
 	router := srv.Router(tenantMW, rateMW)
 

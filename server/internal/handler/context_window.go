@@ -18,6 +18,10 @@ type contextWindowRequest struct {
 	// System prompt content (will be injected as a system message).
 	SystemPrompt string `json:"system_prompt,omitempty"`
 
+	// Session metadata for injection (collected at session start, not stored long-term).
+	// This is injected before memory content.
+	SessionMetadata *domain.SessionMetadata `json:"session_metadata,omitempty"`
+
 	// Memory content (will be injected as a memory message).
 	MemoryContent string `json:"memory_content,omitempty"`
 
@@ -45,7 +49,7 @@ type contextWindowResponse struct {
 }
 
 // contextWindow handles POST requests to truncate a message list to fit within token limits.
-// It preserves system prompts and memory injections while dropping oldest user/assistant pairs first.
+// It preserves system prompts, session metadata, and memory injections while dropping oldest user/assistant pairs first.
 func (s *Server) contextWindow(w http.ResponseWriter, r *http.Request) {
 	var req contextWindowRequest
 	if err := decode(r, &req); err != nil {
@@ -59,7 +63,8 @@ func (s *Server) contextWindow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the full message list with injected content
-	messages := make([]service.ContextMessage, 0, len(req.Messages)+2)
+	// Order: system -> metadata -> memory -> conversation
+	messages := make([]service.ContextMessage, 0, len(req.Messages)+3)
 
 	// Add system prompt if provided
 	if req.SystemPrompt != "" {
@@ -67,6 +72,18 @@ func (s *Server) contextWindow(w http.ResponseWriter, r *http.Request) {
 			Role:    "system",
 			Content: req.SystemPrompt,
 		})
+	}
+
+	// Add session metadata if provided (before memory, after system)
+	if req.SessionMetadata != nil {
+		metadataMsg, err := service.BuildMetadataMessage(req.SessionMetadata, service.NewSessionMetadataFormatter(service.DefaultSessionMetadataConfig()))
+		if err != nil {
+			s.handleError(w, err)
+			return
+		}
+		if metadataMsg.Content != "" {
+			messages = append(messages, metadataMsg)
+		}
 	}
 
 	// Add memory content if provided
@@ -110,10 +127,11 @@ func (s *Server) contextWindow(w http.ResponseWriter, r *http.Request) {
 
 // quickTruncateRequest is for simple truncation without detailed response.
 type quickTruncateRequest struct {
-	Messages      []service.ContextMessage `json:"messages"`
-	MaxTokens     *int                     `json:"max_tokens,omitempty"`
-	SystemPrompt  string                   `json:"system_prompt,omitempty"`
-	MemoryContent string                   `json:"memory_content,omitempty"`
+	Messages        []service.ContextMessage `json:"messages"`
+	MaxTokens       *int                     `json:"max_tokens,omitempty"`
+	SystemPrompt    string                   `json:"system_prompt,omitempty"`
+	SessionMetadata *domain.SessionMetadata  `json:"session_metadata,omitempty"`
+	MemoryContent   string                   `json:"memory_content,omitempty"`
 }
 
 // quickTruncateResponse returns just the truncated messages.
@@ -135,10 +153,20 @@ func (s *Server) quickTruncate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the full message list
-	messages := make([]service.ContextMessage, 0, len(req.Messages)+2)
+	// Order: system -> metadata -> memory -> conversation
+	messages := make([]service.ContextMessage, 0, len(req.Messages)+3)
 	if req.SystemPrompt != "" {
 		messages = append(messages, service.ContextMessage{Role: "system", Content: req.SystemPrompt})
 	}
+
+	// Add session metadata if provided (before memory, after system)
+	if req.SessionMetadata != nil {
+		metadataMsg, err := service.BuildMetadataMessage(req.SessionMetadata, service.NewSessionMetadataFormatter(service.DefaultSessionMetadataConfig()))
+		if err == nil && metadataMsg.Content != "" {
+			messages = append(messages, metadataMsg)
+		}
+	}
+
 	if req.MemoryContent != "" {
 		messages = append(messages, service.ContextMessage{Role: "memory", Content: req.MemoryContent})
 	}
