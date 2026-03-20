@@ -97,7 +97,22 @@ func main() {
 	rateMW := rl.Middleware()
 
 	// Handler.
-	srv := handler.NewServer(tenantSvc, uploadTaskRepo, cfg.UploadDir, embedder, llmClient, cfg.EmbedAutoModel, cfg.FTSEnabled, service.IngestMode(cfg.IngestMode), logger)
+	srv := handler.NewServer(
+		tenantSvc,
+		uploadTaskRepo,
+		cfg.UploadDir,
+		embedder,
+		llmClient,
+		cfg.EmbedAutoModel,
+		cfg.FTSEnabled,
+		service.IngestMode(cfg.IngestMode),
+		logger,
+		cfg.MaxContextTokens,
+		cfg.TokenizerType,
+		cfg.TokenizerModel,
+		cfg.SystemPromptReservedTokens,
+		cfg.MemoryReservedTokens,
+	)
 	router := srv.Router(tenantMW, rateMW)
 
 	httpSrv := &http.Server{

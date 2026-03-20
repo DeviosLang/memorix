@@ -51,6 +51,27 @@ type Config struct {
 	// Upload directory for file storage.
 	// Files are stored at {UploadDir}/{tenantID}/{agentID}/{filename}.
 	UploadDir string
+
+	// Context window configuration for sliding window management.
+	// MaxContextTokens is the maximum number of tokens allowed in a context window.
+	// Default is 8192 (8K), recommended range is 8K-16K depending on model.
+	MaxContextTokens int
+
+	// TokenizerType specifies which tokenizer to use for token counting.
+	// Valid values: "tiktoken" (default), "estimate".
+	TokenizerType string
+
+	// TokenizerModel specifies the model for tokenizer encoding selection.
+	// For tiktoken, this determines the encoding (e.g., "gpt-4" -> cl100k_base).
+	TokenizerModel string
+
+	// SystemPromptReservedTokens reserves tokens for system prompts.
+	// Default is 500 tokens.
+	SystemPromptReservedTokens int
+
+	// MemoryReservedTokens reserves tokens for memory injection area.
+	// Default is 2000 tokens.
+	MemoryReservedTokens int
 }
 
 func Load() (*Config, error) {
@@ -84,6 +105,11 @@ func Load() (*Config, error) {
 		UploadDir:             envOr("MNEMO_UPLOAD_DIR", "./uploads"),
 		FTSEnabled:            envBool("MNEMO_FTS_ENABLED", false),
 		WorkerConcurrency:     envInt("MNEMO_WORKER_CONCURRENCY", 5),
+		MaxContextTokens:      envInt("MNEMO_MAX_CONTEXT_TOKENS", 8192),
+		TokenizerType:         envOr("MNEMO_TOKENIZER_TYPE", "tiktoken"),
+		TokenizerModel:        envOr("MNEMO_TOKENIZER_MODEL", "gpt-4"),
+		SystemPromptReservedTokens:  envInt("MNEMO_SYSTEM_PROMPT_RESERVED_TOKENS", 500),
+		MemoryReservedTokens:  envInt("MNEMO_MEMORY_RESERVED_TOKENS", 2000),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {

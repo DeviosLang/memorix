@@ -19,6 +19,7 @@ import (
 	"github.com/devioslang/memorix/server/internal/repository"
 	"github.com/devioslang/memorix/server/internal/repository/tidb"
 	"github.com/devioslang/memorix/server/internal/service"
+	"github.com/devioslang/memorix/server/internal/tokenizer"
 )
 
 // Server holds the HTTP handlers and their dependencies.
@@ -33,6 +34,10 @@ type Server struct {
 	ingestMode  service.IngestMode
 	logger      *slog.Logger
 	svcCache    sync.Map
+
+	// Context window management
+	tokenizer           tokenizer.Tokenizer
+	contextWindowConfig service.ContextWindowConfig
 }
 
 // NewServer creates a new HTTP handler server.
@@ -46,17 +51,42 @@ func NewServer(
 	ftsEnabled bool,
 	ingestMode service.IngestMode,
 	logger *slog.Logger,
+	maxContextTokens int,
+	tokenizerType string,
+	tokenizerModel string,
+	systemPromptReservedTokens int,
+	memoryReservedTokens int,
 ) *Server {
+	// Create tokenizer based on configuration
+	tok, err := tokenizer.New(tokenizer.Config{
+		Type:    tokenizer.TokenizerType(tokenizerType),
+		Model:   tokenizerModel,
+	})
+	if err != nil {
+		logger.Warn("failed to create tokenizer, using default", "err", err)
+		tok = tokenizer.NewDefault()
+	}
+
+	// Create context window config
+	contextConfig := service.ContextWindowConfig{
+		MaxTokens:                  maxContextTokens,
+		SystemPromptReservedTokens: systemPromptReservedTokens,
+		MemoryReservedTokens:       memoryReservedTokens,
+		Tokenizer:                  tok,
+	}
+
 	return &Server{
-		tenant:      tenantSvc,
-		uploadTasks: uploadTasks,
-		uploadDir:   uploadDir,
-		embedder:    embedder,
-		llmClient:   llmClient,
-		autoModel:   autoModel,
-		ftsEnabled:  ftsEnabled,
-		ingestMode:  ingestMode,
-		logger:      logger,
+		tenant:              tenantSvc,
+		uploadTasks:         uploadTasks,
+		uploadDir:           uploadDir,
+		embedder:            embedder,
+		llmClient:           llmClient,
+		autoModel:           autoModel,
+		ftsEnabled:          ftsEnabled,
+		ingestMode:          ingestMode,
+		logger:              logger,
+		tokenizer:           tok,
+		contextWindowConfig: contextConfig,
 	}
 }
 
@@ -125,6 +155,11 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Get("/memories/{id}", s.getMemory)
 		r.Put("/memories/{id}", s.updateMemory)
 		r.Delete("/memories/{id}", s.deleteMemory)
+
+		// Context window management.
+		r.Post("/context", s.contextWindow)
+		r.Post("/context/truncate", s.quickTruncate)
+		r.Post("/context/count", s.countTokens)
 
 		// Imports (async file ingest).
 		r.Post("/imports", s.createTask)
