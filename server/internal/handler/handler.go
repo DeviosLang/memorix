@@ -39,6 +39,9 @@ type Server struct {
 	tokenizer           tokenizer.Tokenizer
 	contextWindowConfig service.ContextWindowConfig
 
+	// Context builder configuration
+	contextBuilderConfig service.ContextBuilderConfig
+
 	// User profile configuration
 	maxFactsPerUser int
 }
@@ -60,6 +63,10 @@ func NewServer(
 	systemPromptReservedTokens int,
 	memoryReservedTokens int,
 	metadataReservedTokens int,
+	userMemoryBudgetMin int,
+	userMemoryBudgetMax int,
+	summaryBudgetMin int,
+	summaryBudgetMax int,
 ) *Server {
 	// Create tokenizer based on configuration
 	tok, err := tokenizer.New(tokenizer.Config{
@@ -80,19 +87,32 @@ func NewServer(
 		Tokenizer:                  tok,
 	}
 
+	// Create context builder config
+	builderConfig := service.ContextBuilderConfig{
+		MaxTokens:            maxContextTokens,
+		SystemBudget:         systemPromptReservedTokens,
+		MetadataBudget:       metadataReservedTokens,
+		UserMemoryBudgetMin:  userMemoryBudgetMin,
+		UserMemoryBudgetMax:  userMemoryBudgetMax,
+		SummaryBudgetMin:     summaryBudgetMin,
+		SummaryBudgetMax:     summaryBudgetMax,
+		Tokenizer:            tok,
+	}
+
 	return &Server{
-		tenant:              tenantSvc,
-		uploadTasks:         uploadTasks,
-		uploadDir:           uploadDir,
-		embedder:            embedder,
-		llmClient:           llmClient,
-		autoModel:           autoModel,
-		ftsEnabled:          ftsEnabled,
-		ingestMode:          ingestMode,
-		logger:              logger,
-		tokenizer:           tok,
-		contextWindowConfig: contextConfig,
-		maxFactsPerUser:     200, // Default capacity per user
+		tenant:               tenantSvc,
+		uploadTasks:          uploadTasks,
+		uploadDir:            uploadDir,
+		embedder:             embedder,
+		llmClient:            llmClient,
+		autoModel:            autoModel,
+		ftsEnabled:           ftsEnabled,
+		ingestMode:           ingestMode,
+		logger:               logger,
+		tokenizer:            tok,
+		contextWindowConfig:  contextConfig,
+		contextBuilderConfig: builderConfig,
+		maxFactsPerUser:      200, // Default capacity per user
 	}
 }
 
@@ -176,6 +196,7 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Post("/context", s.contextWindow)
 		r.Post("/context/truncate", s.quickTruncate)
 		r.Post("/context/count", s.countTokens)
+		r.Post("/context/build", s.buildContext)
 
 		// Imports (async file ingest).
 		r.Post("/imports", s.createTask)

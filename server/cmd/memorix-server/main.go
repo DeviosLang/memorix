@@ -113,6 +113,10 @@ func main() {
 		cfg.SystemPromptReservedTokens,
 		cfg.MemoryReservedTokens,
 		cfg.MetadataReservedTokens,
+		cfg.UserMemoryBudgetMin,
+		cfg.UserMemoryBudgetMax,
+		cfg.SummaryBudgetMin,
+		cfg.SummaryBudgetMax,
 	)
 	router := srv.Router(tenantMW, rateMW)
 

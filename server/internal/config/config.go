@@ -76,6 +76,25 @@ type Config struct {
 	// MetadataReservedTokens reserves tokens for session metadata injection.
 	// Default is 200 tokens (per acceptance criteria).
 	MetadataReservedTokens int
+
+	// Context Builder elastic budget configuration.
+	// These control the token budget ranges for elastic layers.
+
+	// UserMemoryBudgetMin is the minimum tokens for user memory layer.
+	// Default is 500 tokens.
+	UserMemoryBudgetMin int
+
+	// UserMemoryBudgetMax is the maximum tokens for user memory layer.
+	// Default is 1500 tokens.
+	UserMemoryBudgetMax int
+
+	// SummaryBudgetMin is the minimum tokens for conversation summary layer.
+	// Default is 300 tokens.
+	SummaryBudgetMin int
+
+	// SummaryBudgetMax is the maximum tokens for conversation summary layer.
+	// Default is 800 tokens.
+	SummaryBudgetMax int
 }
 
 func Load() (*Config, error) {
@@ -115,6 +134,10 @@ func Load() (*Config, error) {
 		SystemPromptReservedTokens:  envInt("MNEMO_SYSTEM_PROMPT_RESERVED_TOKENS", 500),
 		MemoryReservedTokens:  envInt("MNEMO_MEMORY_RESERVED_TOKENS", 2000),
 		MetadataReservedTokens: envInt("MNEMO_METADATA_RESERVED_TOKENS", 200),
+		UserMemoryBudgetMin:   envInt("MNEMO_USER_MEMORY_BUDGET_MIN", 500),
+		UserMemoryBudgetMax:   envInt("MNEMO_USER_MEMORY_BUDGET_MAX", 1500),
+		SummaryBudgetMin:      envInt("MNEMO_SUMMARY_BUDGET_MIN", 300),
+		SummaryBudgetMax:      envInt("MNEMO_SUMMARY_BUDGET_MAX", 800),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {
