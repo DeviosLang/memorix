@@ -107,6 +107,20 @@ func main() {
 		SnapshotRetentionDays:   cfg.GCSnapshotRetentionDays,
 		BatchSize:               cfg.GCBatchSize,
 	}
+	rulesConfig := domain.RulesConfig{
+		OrganizationRulesPath: cfg.RulesOrganizationPath,
+		UserRulesPath:         cfg.RulesUserPath,
+		EnableOrganization:    cfg.RulesEnabled,
+		EnableUser:            cfg.RulesEnabled,
+		EnableProject:         cfg.RulesEnabled,
+		EnableModule:          cfg.RulesEnabled,
+	}
+	rulesInjectionConfig := domain.RulesInjectionConfig{
+		Enabled:   cfg.RulesInjectionEnabled,
+		MaxTokens: cfg.RulesInjectionMaxTokens,
+		Header:    cfg.RulesInjectionHeader,
+		InjectAt:  "start",
+	}
 	srv := handler.NewServer(
 		tenantSvc,
 		uploadTaskRepo,
@@ -128,6 +142,8 @@ func main() {
 		cfg.SummaryBudgetMin,
 		cfg.SummaryBudgetMax,
 		gcConfig,
+		rulesConfig,
+		rulesInjectionConfig,
 	)
 	router := srv.Router(tenantMW, rateMW)
 

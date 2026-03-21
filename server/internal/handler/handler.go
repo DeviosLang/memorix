@@ -50,6 +50,10 @@ type Server struct {
 
 	// Memory GC configuration
 	gcConfig domain.GCConfig
+
+	// Rules system
+	rulesLoader  *service.RulesLoader
+	rulesInjector *service.RulesInjector
 }
 
 // NewServer creates a new HTTP handler server.
@@ -74,6 +78,8 @@ func NewServer(
 	summaryBudgetMin int,
 	summaryBudgetMax int,
 	gcConfig domain.GCConfig,
+	rulesConfig domain.RulesConfig,
+	rulesInjectionConfig domain.RulesInjectionConfig,
 ) *Server {
 	// Create tokenizer based on configuration
 	tok, err := tokenizer.New(tokenizer.Config{
@@ -106,6 +112,10 @@ func NewServer(
 		Tokenizer:            tok,
 	}
 
+	// Create rules loader and injector
+	rulesLoader := service.NewRulesLoader(rulesConfig, logger)
+	rulesInjector := service.NewRulesInjector(rulesInjectionConfig, logger)
+
 	return &Server{
 		tenant:               tenantSvc,
 		uploadTasks:          uploadTasks,
@@ -122,6 +132,8 @@ func NewServer(
 		maxFactsPerUser:      200, // Default capacity per user
 		maxSummariesPerUser:  20,  // Default sliding window size per user
 		gcConfig:             gcConfig,
+		rulesLoader:          rulesLoader,
+		rulesInjector:        rulesInjector,
 	}
 }
 
@@ -238,6 +250,14 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 	// Provision a new tenant — no auth, no body.
 	r.Post("/v1alpha1/memorix", s.provisionMemorix)
 
+	// Rules system routes (global, not tenant-scoped).
+	r.Route("/v1alpha1/rules", func(r chi.Router) {
+		r.Post("/load", s.loadRules)
+		r.Get("/changes", s.checkRulesChanges)
+		r.Get("/status", s.rulesStatus)
+		r.Post("/inject", s.injectRules)
+	})
+
 	// Tenant-scoped routes — tenantMW resolves {tenantID} to DB connection.
 	r.Route("/v1alpha1/memorix/{tenantID}", func(r chi.Router) {
 		r.Use(tenantMW)
@@ -290,6 +310,30 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 	})
 
 	return r
+}
+
+// loadRules handles POST /v1alpha1/rules/load
+func (s *Server) loadRules(w http.ResponseWriter, r *http.Request) {
+	h := NewRulesHandler(s.rulesLoader, s.logger)
+	h.LoadRules(w, r)
+}
+
+// checkRulesChanges handles GET /v1alpha1/rules/changes
+func (s *Server) checkRulesChanges(w http.ResponseWriter, r *http.Request) {
+	h := NewRulesHandler(s.rulesLoader, s.logger)
+	h.CheckChanges(w, r)
+}
+
+// rulesStatus handles GET /v1alpha1/rules/status
+func (s *Server) rulesStatus(w http.ResponseWriter, r *http.Request) {
+	h := NewRulesHandler(s.rulesLoader, s.logger)
+	h.GetStatus(w, r)
+}
+
+// injectRules handles POST /v1alpha1/rules/inject
+func (s *Server) injectRules(w http.ResponseWriter, r *http.Request) {
+	h := NewRulesHandler(s.rulesLoader, s.logger)
+	h.InjectRules(w, r, s.rulesInjector)
 }
 
 // respond writes a JSON response.
