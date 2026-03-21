@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"time"
 
@@ -12,35 +13,24 @@ import (
 
 // GCWorker runs periodic memory garbage collection across all tenants.
 type GCWorker struct {
-	tenantRepo repository.TenantRepo
-	tenantPool TenantPool
-	gcConfig   domain.GCConfig
-	logger     *slog.Logger
-}
-
-// TenantPool is an interface for getting tenant DB connections (copied from upload.go).
-type TenantPool interface {
-	Get(tenantID string) (*domain.Tenant, error)
-	Put(tenantID string, db CloseableDB)
-}
-
-// CloseableDB is an interface for databases that can be closed (copied from upload.go).
-type CloseableDB interface {
-	Close() error
+	tenantRepo  repository.TenantRepo
+	getTenantDB func(ctx context.Context, tenantID string) (*sql.DB, error)
+	gcConfig    domain.GCConfig
+	logger      *slog.Logger
 }
 
 // NewGCWorker creates a new GC worker.
 func NewGCWorker(
 	tenantRepo repository.TenantRepo,
-	tenantPool TenantPool,
+	getTenantDB func(ctx context.Context, tenantID string) (*sql.DB, error),
 	gcConfig domain.GCConfig,
 	logger *slog.Logger,
 ) *GCWorker {
 	return &GCWorker{
-		tenantRepo: tenantRepo,
-		tenantPool: tenantPool,
-		gcConfig:   gcConfig,
-		logger:     logger,
+		tenantRepo:  tenantRepo,
+		getTenantDB: getTenantDB,
+		gcConfig:    gcConfig,
+		logger:      logger,
 	}
 }
 
@@ -99,17 +89,16 @@ func (w *GCWorker) runGC(ctx context.Context) {
 
 // RunGCForTenant runs GC for a specific tenant (used by manual triggers and API).
 func (w *GCWorker) RunGCForTenant(ctx context.Context, tenantID string, dryRun bool) (*domain.GCResult, error) {
-	// Get tenant connection
-	tenant, err := w.tenantPool.Get(tenantID)
+	// Get tenant DB connection
+	db, err := w.getTenantDB(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	defer w.tenantPool.Put(tenantID, tenant.DB())
 
 	// Create repositories for this tenant
-	memRepo := tidb.NewMemoryRepo(tenant.DB(), "", false) // autoModel and ftsEnabled not needed for GC
-	gcLogRepo := tidb.NewMemoryGCLogRepo(tenant.DB())
-	gcSnapshotRepo := tidb.NewMemoryGCSnapshotRepo(tenant.DB())
+	memRepo := tidb.NewMemoryRepo(db, "", false) // autoModel and ftsEnabled not needed for GC
+	gcLogRepo := tidb.NewMemoryGCLogRepo(db)
+	gcSnapshotRepo := tidb.NewMemoryGCSnapshotRepo(db)
 
 	// Create GC service
 	gcSvc := NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, w.gcConfig, w.logger)

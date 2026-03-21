@@ -126,6 +126,28 @@ type Config struct {
 	// GCBatchSize is the number of memories to process per GC iteration.
 	// Default is 100.
 	GCBatchSize int
+
+	// Experience layer configuration (Issue #9: 向量存储集成)
+
+	// ExperienceEnabled controls whether the experience recall layer is enabled.
+	// Default is false (requires explicit configuration).
+	ExperienceEnabled bool
+
+	// ExperienceBackend specifies the vector store backend.
+	// Valid values: "qdrant" (default), "chroma".
+	ExperienceBackend string
+
+	// ExperienceMaxPerUser is the maximum experiences per user.
+	// Default is 10000.
+	ExperienceMaxPerUser int
+
+	// Qdrant configuration
+	QdrantURL    string
+	QdrantAPIKey string
+
+	// Chroma configuration
+	ChromaURL      string
+	ChromaDistance string // "l2", "ip", "cosine"
 }
 
 func Load() (*Config, error) {
@@ -178,6 +200,15 @@ func Load() (*Config, error) {
 		GCMaxMemoriesPerTenant:   envInt("MNEMO_GC_MAX_MEMORIES_PER_TENANT", 10000),
 		GCSnapshotRetentionDays:  envInt("MNEMO_GC_SNAPSHOT_RETENTION_DAYS", 30),
 		GCBatchSize:              envInt("MNEMO_GC_BATCH_SIZE", 100),
+
+		// Experience layer configuration
+		ExperienceEnabled:    envBool("MNEMO_EXPERIENCE_ENABLED", false),
+		ExperienceBackend:    envOr("MNEMO_EXPERIENCE_BACKEND", "qdrant"),
+		ExperienceMaxPerUser: envInt("MNEMO_EXPERIENCE_MAX_PER_USER", 10000),
+		QdrantURL:            envOr("MNEMO_QDRANT_URL", "http://localhost:6333"),
+		QdrantAPIKey:         os.Getenv("MNEMO_QDRANT_API_KEY"),
+		ChromaURL:            envOr("MNEMO_CHROMA_URL", "http://localhost:8000"),
+		ChromaDistance:       envOr("MNEMO_CHROMA_DISTANCE", "cosine"),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {
