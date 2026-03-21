@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memorix - Memory Management</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+        }
+        header p {
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .icon {
+            font-size: 1.5rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .stat-card {
+            background: #f8f9fc;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-top: 4px;
+        }
+        .stat-sub {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .progress-fill.green { background: #10b981; }
+        .progress-fill.yellow { background: #f59e0b; }
+        .progress-fill.red { background: #ef4444; }
+        .progress-fill.blue { background: #3b82f6; }
+        .progress-fill.purple { background: #8b5cf6; }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #6b7280;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            background: #f3f4f6;
+        }
+        .tab.active {
+            color: #667eea;
+            background: #f0f4ff;
+            font-weight: 500;
+        }
+        
+        .list-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            gap: 12px;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .list-item:hover {
+            background: #f9fafb;
+        }
+        .item-content {
+            flex: 1;
+        }
+        .item-title {
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        .item-meta {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+        .item-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e0e7ff;
+            color: #4f46e5;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-right: 4px;
+        }
+        .category-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .category-personal { background: #dbeafe; color: #1d4ed8; }
+        .category-preference { background: #fce7f3; color: #be185d; }
+        .category-goal { background: #d1fae5; color: #047857; }
+        .category-skill { background: #fef3c7; color: #b45309; }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        .btn-danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .btn-danger:hover {
+            background: #fecaca;
+        }
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 0.8rem;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+        
+        .debug-info {
+            background: #1a1a2e;
+            color: #a5b4fc;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        .debug-info .key {
+            color: #c4b5fd;
+        }
+        .debug-info .value {
+            color: #86efac;
+        }
+        .debug-info .warning {
+            color: #fbbf24;
+        }
+        
+        .layer-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .layer-card {
+            background: #f8f9fc;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .layer-name {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        .layer-stats {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        
+        .warning-banner {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            header {
+                padding: 20px 0;
+            }
+            header h1 {
+                font-size: 1.5rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🧠 Memorix Memory Dashboard</h1>
+            <p>View and manage user memory across all layers</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- User Selection -->
+        <div class="card">
+            <h2>👤 Select User</h2>
+            <div class="search-box">
+                <input type="text" id="userIdInput" class="search-input" placeholder="Enter User ID (e.g., user_123)">
+                <button class="btn btn-primary" onclick="loadUserData()">Load</button>
+            </div>
+            <p style="font-size: 0.85rem; color: #6b7280;">
+                Tenant ID: <span id="tenantId">demo-tenant</span>
+            </p>
+        </div>
+        
+        <!-- Stats Overview -->
+        <div class="card">
+            <h2>📊 Memory Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-value" id="factsCount">-</div>
+                    <div class="stat-label">Facts</div>
+                    <div class="stat-sub" id="factsTokens">0 tokens</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill blue" id="factsProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="summariesCount">-</div>
+                    <div class="stat-label">Summaries</div>
+                    <div class="stat-sub" id="summariesTokens">0 tokens</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill purple" id="summariesProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="memoriesCount">-</div>
+                    <div class="stat-label">Memories</div>
+                    <div class="stat-sub" id="memoriesTokens">0 tokens</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill green" id="memoriesProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTokens">-</div>
+                    <div class="stat-label">Total Tokens</div>
+                    <div class="stat-sub">Estimated usage</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('facts')">📝 Facts</button>
+            <button class="tab" onclick="showTab('summaries')">💬 Summaries</button>
+            <button class="tab" onclick="showTab('memories')">🧩 Memories</button>
+            <button class="tab" onclick="showTab('debug')">🔍 Debug Context</button>
+        </div>
+        
+        <!-- Facts Tab -->
+        <div class="card" id="factsTab">
+            <div class="search-box">
+                <input type="text" class="search-input" id="factsSearch" placeholder="Search facts..." onkeyup="filterFacts()">
+                <select id="factsCategoryFilter" onchange="filterFacts()" style="padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <option value="">All Categories</option>
+                    <option value="personal">Personal</option>
+                    <option value="preference">Preference</option>
+                    <option value="goal">Goal</option>
+                    <option value="skill">Skill</option>
+                </select>
+            </div>
+            <div id="factsList"></div>
+        </div>
+        
+        <!-- Summaries Tab -->
+        <div class="card" id="summariesTab" style="display: none;">
+            <div id="summariesList"></div>
+        </div>
+        
+        <!-- Memories Tab -->
+        <div class="card" id="memoriesTab" style="display: none;">
+            <div class="search-box">
+                <input type="text" class="search-input" id="memoriesSearch" placeholder="Search memories..." onkeyup="filterMemories()">
+            </div>
+            <div id="memoriesList"></div>
+        </div>
+        
+        <!-- Debug Tab -->
+        <div class="card" id="debugTab" style="display: none;">
+            <div class="search-box">
+                <input type="text" class="search-input" id="sessionIdInput" placeholder="Enter Session ID">
+                <button class="btn btn-primary" onclick="loadDebugContext()">Debug</button>
+            </div>
+            <div id="debugOutput">
+                <div class="empty-state">
+                    <div class="icon">🔍</div>
+                    <p>Enter a session ID to view context assembly details</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin;
+        let currentUserData = null;
+        
+        // Tab management
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.card').forEach(card => {
+                if (card.id.endsWith('Tab')) {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').style.display = 'block';
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // Load user data
+        async function loadUserData() {
+            const userId = document.getElementById('userIdInput').value.trim();
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+            
+            try {
+                // Load stats
+                const statsResponse = await fetch(`${API_BASE}/api/memory/${userId}/stats`);
+                if (!statsResponse.ok) throw new Error('Failed to load stats');
+                const stats = await statsResponse.json();
+                
+                // Update stats display
+                updateStatsDisplay(stats);
+                
+                // Load facts
+                const factsResponse = await fetch(`${API_BASE}/api/memory/${userId}/facts`);
+                const factsData = await factsResponse.json();
+                renderFacts(factsData.facts || []);
+                
+                // Load summaries
+                const summariesResponse = await fetch(`${API_BASE}/api/memory/${userId}/summaries`);
+                const summariesData = await summariesResponse.json();
+                renderSummaries(summariesData.summaries || []);
+                
+                // Load memories
+                const memoriesResponse = await fetch(`${API_BASE}/v1alpha1/memorix/${getTenantId()}/memories?agent_id=${userId}`);
+                const memoriesData = await memoriesResponse.json();
+                renderMemories(memoriesData.memories || []);
+                
+                currentUserData = { stats, facts: factsData.facts, summaries: summariesData.summaries, memories: memoriesData.memories };
+                
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                alert('Failed to load user data: ' + error.message);
+            }
+        }
+        
+        function getTenantId() {
+            return document.getElementById('tenantId').textContent;
+        }
+        
+        function updateStatsDisplay(stats) {
+            document.getElementById('factsCount').textContent = stats.facts_count;
+            document.getElementById('factsTokens').textContent = `${stats.facts_tokens} tokens`;
+            document.getElementById('factsProgress').style.width = `${Math.min(stats.facts_utilization, 100)}%`;
+            
+            document.getElementById('summariesCount').textContent = stats.summaries_count;
+            document.getElementById('summariesTokens').textContent = `${stats.summaries_tokens} tokens`;
+            document.getElementById('summariesProgress').style.width = `${Math.min(stats.summaries_utilization, 100)}%`;
+            
+            document.getElementById('memoriesCount').textContent = stats.memories_count;
+            document.getElementById('memoriesTokens').textContent = `${stats.memories_tokens} tokens`;
+            document.getElementById('memoriesProgress').style.width = `${Math.min(stats.memories_utilization, 100)}%`;
+            
+            document.getElementById('totalTokens').textContent = formatNumber(stats.total_tokens);
+        }
+        
+        function renderFacts(facts) {
+            const container = document.getElementById('factsList');
+            if (facts.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>No facts found for this user</p></div>';
+                return;
+            }
+            
+            container.innerHTML = facts.map(fact => `
+                <div class="list-item" data-category="${fact.category}" data-key="${fact.key.toLowerCase()}" data-value="${fact.value.toLowerCase()}">
+                    <span class="category-badge category-${fact.category}">${fact.category}</span>
+                    <div class="item-content">
+                        <div class="item-title">${escapeHtml(fact.key)}</div>
+                        <div class="item-meta">${escapeHtml(fact.value)}</div>
+                        <div class="item-meta">
+                            Confidence: ${(fact.confidence * 100).toFixed(0)}% | 
+                            Source: ${fact.source} |
+                            Updated: ${new Date(fact.updated_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="deleteFact('${fact.fact_id}')">Delete</button>
+                </div>
+            `).join('');
+        }
+        
+        function renderSummaries(summaries) {
+            const container = document.getElementById('summariesList');
+            if (summaries.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>No conversation summaries found</p></div>';
+                return;
+            }
+            
+            container.innerHTML = summaries.map(summary => `
+                <div class="list-item">
+                    <div class="item-content">
+                        <div class="item-title">${escapeHtml(summary.title)}</div>
+                        <div class="item-meta">${escapeHtml(summary.summary)}</div>
+                        <div class="item-meta">
+                            Intent: ${escapeHtml(summary.user_intent)} |
+                            Created: ${new Date(summary.created_at).toLocaleDateString()}
+                        </div>
+                        <div>
+                            ${(summary.key_topics || []).map(topic => `<span class="item-tag">${escapeHtml(topic)}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderMemories(memories) {
+            const container = document.getElementById('memoriesList');
+            if (memories.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🧩</div><p>No memories found</p></div>';
+                return;
+            }
+            
+            container.innerHTML = memories.map(memory => `
+                <div class="list-item" data-content="${memory.content.toLowerCase()}">
+                    <div class="item-content">
+                        <div class="item-title">${escapeHtml(memory.content.substring(0, 100))}${memory.content.length > 100 ? '...' : ''}</div>
+                        <div class="item-meta">
+                            Type: ${memory.memory_type} |
+                            State: ${memory.state} |
+                            Updated: ${new Date(memory.updated_at).toLocaleDateString()}
+                        </div>
+                        <div>
+                            ${(memory.tags || []).map(tag => `<span class="item-tag">${escapeHtml(tag)}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function filterFacts() {
+            const search = document.getElementById('factsSearch').value.toLowerCase();
+            const category = document.getElementById('factsCategoryFilter').value;
+            
+            document.querySelectorAll('#factsList .list-item').forEach(item => {
+                const matchesSearch = !search || 
+                    item.dataset.key.includes(search) || 
+                    item.dataset.value.includes(search);
+                const matchesCategory = !category || item.dataset.category === category;
+                
+                item.style.display = matchesSearch && matchesCategory ? 'flex' : 'none';
+            });
+        }
+        
+        function filterMemories() {
+            const search = document.getElementById('memoriesSearch').value.toLowerCase();
+            
+            document.querySelectorAll('#memoriesList .list-item').forEach(item => {
+                const matches = !search || item.dataset.content.includes(search);
+                item.style.display = matches ? 'flex' : 'none';
+            });
+        }
+        
+        async function deleteFact(factId) {
+            if (!confirm('Are you sure you want to delete this fact?')) return;
+            
+            const userId = document.getElementById('userIdInput').value.trim();
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/memory/${userId}/facts/${factId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete fact');
+                
+                // Reload data
+                loadUserData();
+            } catch (error) {
+                alert('Failed to delete fact: ' + error.message);
+            }
+        }
+        
+        async function loadDebugContext() {
+            const sessionId = document.getElementById('sessionIdInput').value.trim();
+            const userId = document.getElementById('userIdInput').value.trim();
+            
+            if (!sessionId || !userId) {
+                alert('Please enter both User ID and Session ID');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/debug/context/${sessionId}?user_id=${userId}&include_prompt=true`);
+                if (!response.ok) throw new Error('Failed to load debug context');
+                
+                const data = await response.json();
+                renderDebugOutput(data);
+            } catch (error) {
+                document.getElementById('debugOutput').innerHTML = `
+                    <div class="warning-banner">
+                        <span>⚠️</span>
+                        <span>Failed to load debug context: ${error.message}</span>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderDebugOutput(data) {
+            const container = document.getElementById('debugOutput');
+            
+            let html = `
+                <h3>Context Assembly for Session: ${escapeHtml(data.session_id)}</h3>
+                <p style="color: #6b7280; margin-bottom: 16px;">
+                    Total Tokens: <strong>${data.total_tokens}</strong> / ${data.max_tokens}
+                </p>
+            `;
+            
+            if (data.warnings && data.warnings.length > 0) {
+                html += `<div class="warning-banner">
+                    <span>⚠️</span>
+                    <div>${data.warnings.map(w => `<div>${escapeHtml(w)}</div>`).join('')}</div>
+                </div>`;
+            }
+            
+            html += `<div class="layer-info">`;
+            for (const layer of data.layers) {
+                html += `
+                    <div class="layer-card">
+                        <div class="layer-name">${escapeHtml(layer.layer)}</div>
+                        <div class="layer-stats">
+                            Items: ${layer.item_count}<br>
+                            Tokens: ${layer.token_count}
+                            ${layer.truncated ? '<br><span style="color: #ef4444;">⚠️ Truncated</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+            
+            if (data.prompt) {
+                html += `
+                    <h4 style="margin-top: 24px; margin-bottom: 12px;">Assembled Prompt</h4>
+                    <div class="debug-info">${escapeHtml(data.prompt)}</div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Utility functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+        
+        // Initialize with demo data
+        document.getElementById('userIdInput').value = 'demo-user';
+    </script>
+</body>
+</html>

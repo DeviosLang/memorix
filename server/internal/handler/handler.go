@@ -147,6 +147,8 @@ type resolvedSvc struct {
 	reconciler  *service.ReconcilerService
 	summarizer  *service.ConversationSummarizerService
 	gc          *service.GCService
+	stats       *service.MemoryStatsService
+	experience  *service.ExperienceService
 }
 
 type tenantSvcKey string
@@ -168,6 +170,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
 		summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
 		gcSvc := service.NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, s.gcConfig, s.logger)
+		statsSvc := service.NewMemoryStatsService(factRepo, summaryRepo, memRepo, s.tokenizer, s.maxFactsPerUser, s.maxSummariesPerUser, s.gcConfig.MaxMemoriesPerTenant)
 		svc := resolvedSvc{
 			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
@@ -176,6 +179,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 			reconciler:  reconciler,
 			summarizer:  summarizer,
 			gc:          gcSvc,
+			stats:       statsSvc,
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -194,6 +198,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 	reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
 	summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
 	gcSvc := service.NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, s.gcConfig, s.logger)
+	statsSvc := service.NewMemoryStatsService(factRepo, summaryRepo, memRepo, s.tokenizer, s.maxFactsPerUser, s.maxSummariesPerUser, s.gcConfig.MaxMemoriesPerTenant)
 	svc := resolvedSvc{
 		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
@@ -202,6 +207,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		reconciler:  reconciler,
 		summarizer:  summarizer,
 		gc:          gcSvc,
+		stats:       statsSvc,
 	}
 	s.svcCache.Store(key, svc)
 	return svc
@@ -232,6 +238,16 @@ func (s *Server) resolveGCServices(auth *domain.AuthInfo) *service.GCService {
 	return s.resolveServices(auth).gc
 }
 
+// resolveStatsServices returns the MemoryStatsService for a request.
+func (s *Server) resolveStatsServices(auth *domain.AuthInfo) *service.MemoryStatsService {
+	return s.resolveServices(auth).stats
+}
+
+// resolveExperienceServices returns the ExperienceService for a request.
+func (s *Server) resolveExperienceServices(auth *domain.AuthInfo) *service.ExperienceService {
+	return s.resolveServices(auth).experience
+}
+
 // Router builds the chi router with all routes and middleware.
 func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) http.Handler {
 	r := chi.NewRouter()
@@ -246,6 +262,10 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	// Web UI (memory dashboard) - serve static files
+	r.Get("/", s.serveDashboard)
+	r.Get("/dashboard", s.serveDashboard)
 
 	// Provision a new tenant — no auth, no body.
 	r.Post("/v1alpha1/memorix", s.provisionMemorix)
@@ -307,6 +327,36 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Get("/gc/logs", s.listGCLogs)
 		r.Get("/gc/snapshots/{id}", s.getGCSnapshot)
 
+	})
+
+	// Memory Management API (user-centric routes).
+	r.Route("/api/memory/{user_id}", func(r chi.Router) {
+		r.Use(tenantMW)
+
+		// User facts
+		r.Get("/facts", s.listUserFacts)
+		r.Delete("/facts/{fact_id}", s.deleteUserFact)
+
+		// User summaries
+		r.Get("/summaries", s.listUserSummaries)
+
+		// User experiences (semantic search)
+		r.Get("/experiences", s.searchUserExperiences)
+
+		// User GC
+		r.Post("/gc", s.triggerUserGC)
+
+		// User stats
+		r.Get("/stats", s.getUserMemoryStats)
+		r.Get("/overview", s.getUserMemoryOverview)
+	})
+
+	// Debug API.
+	r.Route("/api/debug", func(r chi.Router) {
+		r.Use(tenantMW)
+
+		// Context debugging
+		r.Get("/context/{session_id}", s.getDebugContext)
 	})
 
 	return r
