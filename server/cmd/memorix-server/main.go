@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/devioslang/memorix/server/internal/config"
+	"github.com/devioslang/memorix/server/internal/domain"
 	"github.com/devioslang/memorix/server/internal/embed"
 	"github.com/devioslang/memorix/server/internal/handler"
 	"github.com/devioslang/memorix/server/internal/llm"
