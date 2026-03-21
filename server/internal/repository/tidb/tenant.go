@@ -70,6 +70,43 @@ func (r *TenantRepoImpl) UpdateSchemaVersion(ctx context.Context, id string, ver
 	return nil
 }
 
+func (r *TenantRepoImpl) ListActive(ctx context.Context) ([]domain.Tenant, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, name, db_host, db_port, db_user, db_password, db_name, db_tls, provider, cluster_id, claim_url, claim_expires_at,
+		 status, schema_version, created_at, updated_at, deleted_at
+		 FROM tenants WHERE status = 'active' AND deleted_at IS NULL
+		 ORDER BY created_at DESC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list active tenants: %w", err)
+	}
+	defer rows.Close()
+
+	var tenants []domain.Tenant
+	for rows.Next() {
+		var t domain.Tenant
+		var clusterID, claimURL sql.NullString
+		var claimExpiresAt sql.NullTime
+		var status string
+		var deletedAt sql.NullTime
+		if err := rows.Scan(&t.ID, &t.Name, &t.DBHost, &t.DBPort, &t.DBUser, &t.DBPassword, &t.DBName, &t.DBTLS,
+			&t.Provider, &clusterID, &claimURL, &claimExpiresAt, &status, &t.SchemaVersion, &t.CreatedAt, &t.UpdatedAt, &deletedAt); err != nil {
+			return nil, fmt.Errorf("scan tenant: %w", err)
+		}
+		t.ClusterID = clusterID.String
+		t.ClaimURL = claimURL.String
+		t.Status = domain.TenantStatus(status)
+		if claimExpiresAt.Valid {
+			t.ClaimExpiresAt = &claimExpiresAt.Time
+		}
+		if deletedAt.Valid {
+			t.DeletedAt = &deletedAt.Time
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
 type TenantTokenRepoImpl struct {
 	db *sql.DB
 }

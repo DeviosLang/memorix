@@ -95,6 +95,37 @@ type Config struct {
 	// SummaryBudgetMax is the maximum tokens for conversation summary layer.
 	// Default is 800 tokens.
 	SummaryBudgetMax int
+
+	// Memory GC configuration
+
+	// GCEnabled controls whether memory garbage collection runs automatically.
+	// Default is true.
+	GCEnabled bool
+
+	// GCInterval is the time between GC runs.
+	// Default is 24h (daily).
+	GCInterval time.Duration
+
+	// GCStaleThreshold is the duration after which unaccessed memories become stale.
+	// Default is 90 days.
+	GCStaleThreshold time.Duration
+
+	// GCLowConfidenceThreshold is the confidence below which memories are candidates for cleanup.
+	// Default is 0.5.
+	GCLowConfidenceThreshold float64
+
+	// GCMaxMemoriesPerTenant is the capacity limit per tenant.
+	// When exceeded, lowest importance memories are cleaned up.
+	// Default is 10000.
+	GCMaxMemoriesPerTenant int
+
+	// GCSnapshotRetentionDays is how long to keep GC snapshots for recovery.
+	// Default is 30 days.
+	GCSnapshotRetentionDays int
+
+	// GCBatchSize is the number of memories to process per GC iteration.
+	// Default is 100.
+	GCBatchSize int
 }
 
 func Load() (*Config, error) {
@@ -138,6 +169,15 @@ func Load() (*Config, error) {
 		UserMemoryBudgetMax:   envInt("MNEMO_USER_MEMORY_BUDGET_MAX", 1500),
 		SummaryBudgetMin:      envInt("MNEMO_SUMMARY_BUDGET_MIN", 300),
 		SummaryBudgetMax:      envInt("MNEMO_SUMMARY_BUDGET_MAX", 800),
+
+		// Memory GC configuration
+		GCEnabled:                envBool("MNEMO_GC_ENABLED", true),
+		GCInterval:               envDuration("MNEMO_GC_INTERVAL", 24*time.Hour),
+		GCStaleThreshold:         envDuration("MNEMO_GC_STALE_THRESHOLD", 90*24*time.Hour), // 90 days
+		GCLowConfidenceThreshold: envFloat("MNEMO_GC_LOW_CONFIDENCE_THRESHOLD", 0.5),
+		GCMaxMemoriesPerTenant:   envInt("MNEMO_GC_MAX_MEMORIES_PER_TENANT", 10000),
+		GCSnapshotRetentionDays:  envInt("MNEMO_GC_SNAPSHOT_RETENTION_DAYS", 30),
+		GCBatchSize:              envInt("MNEMO_GC_BATCH_SIZE", 100),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {

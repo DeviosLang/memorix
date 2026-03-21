@@ -51,18 +51,31 @@ CREATE TABLE IF NOT EXISTS memories (
 
   -- Lifecycle
   state           VARCHAR(20)     NOT NULL DEFAULT 'active'
-                  COMMENT 'active|paused|archived|deleted',
+                  COMMENT 'active|paused|archived|deleted|stale',
   version         INT             DEFAULT 1,
   updated_by      VARCHAR(100),
   created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   superseded_by   VARCHAR(36)     NULL     COMMENT 'ID of the memory that replaced this one',
+
+  -- GC (Memory Garbage Collection) fields
+  confidence      DECIMAL(3,2)    NOT NULL DEFAULT 1.0
+                  COMMENT '0.00-1.00, confidence score for inferred memories',
+  access_count    INT             NOT NULL DEFAULT 0
+                  COMMENT 'Number of times this memory was accessed',
+  last_accessed_at TIMESTAMP      NULL
+                  COMMENT 'Last time this memory was accessed/retrieved',
+  importance_score DECIMAL(5,4)   NULL
+                  COMMENT 'Computed importance score (0.0000-1.0000)',
+
   INDEX idx_memory_type         (memory_type),
   INDEX idx_source              (source),
   INDEX idx_state               (state),
   INDEX idx_agent               (agent_id),
   INDEX idx_session             (session_id),
-  INDEX idx_updated             (updated_at)
+  INDEX idx_updated             (updated_at),
+  INDEX idx_gc_stale            (state, last_accessed_at),
+  INDEX idx_gc_importance       (importance_score)
 );
 
 -- Full-text search index (TiDB Cloud Serverless with MULTILINGUAL tokenizer).
@@ -198,3 +211,47 @@ CREATE TABLE IF NOT EXISTS conversation_summaries (
   INDEX idx_user_summaries (user_id, created_at DESC),
   INDEX idx_session (session_id)
 ) COMMENT 'Recent conversation summaries - sliding window of 15-20 per user';
+
+-- Memory GC audit logs (tracks memory garbage collection operations).
+-- Every GC operation is logged for traceability and recovery purposes.
+CREATE TABLE IF NOT EXISTS memory_gc_logs (
+  log_id           VARCHAR(36)     PRIMARY KEY,
+  memory_id        VARCHAR(36)     NOT NULL,
+  tenant_id        VARCHAR(36)     NOT NULL,
+  content_preview  VARCHAR(500)    NULL
+                   COMMENT 'First 500 chars of deleted content for recovery',
+  source           VARCHAR(100)    NULL,
+  memory_type      VARCHAR(20)     NULL,
+  state            VARCHAR(20)     NOT NULL
+                   COMMENT 'State before deletion',
+  confidence       DECIMAL(3,2)    NULL,
+  access_count     INT             NULL,
+  last_accessed_at TIMESTAMP       NULL,
+  importance_score DECIMAL(5,4)    NULL,
+  deletion_reason  VARCHAR(50)     NOT NULL
+                   COMMENT 'stale|low_importance|capacity|manual',
+  gc_run_id        VARCHAR(36)     NOT NULL
+                   COMMENT 'Groups logs from the same GC run',
+  created_at       TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_gc_tenant (tenant_id, created_at DESC),
+  INDEX idx_gc_run (gc_run_id),
+  INDEX idx_gc_memory (memory_id)
+) COMMENT 'Memory GC audit logs for traceability and recovery';
+
+-- Memory GC snapshots (pre-deletion backup for recovery).
+-- Stores full memory data before bulk deletion for potential recovery.
+CREATE TABLE IF NOT EXISTS memory_gc_snapshots (
+  snapshot_id     VARCHAR(36)     PRIMARY KEY,
+  gc_run_id       VARCHAR(36)     NOT NULL,
+  tenant_id       VARCHAR(36)     NOT NULL,
+  memory_count    INT             NOT NULL
+                  COMMENT 'Number of memories in this snapshot',
+  snapshot_data   MEDIUMTEXT      NOT NULL
+                  COMMENT 'JSON array of memory objects',
+  created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+  expires_at      TIMESTAMP       NOT NULL
+                  COMMENT 'When this snapshot can be purged',
+  INDEX idx_gc_snapshot_tenant (tenant_id, created_at DESC),
+  INDEX idx_gc_snapshot_run (gc_run_id),
+  INDEX idx_gc_snapshot_expires (expires_at)
+) COMMENT 'Pre-deletion snapshots for memory recovery';

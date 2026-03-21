@@ -47,6 +47,9 @@ type Server struct {
 
 	// Conversation summary configuration
 	maxSummariesPerUser int
+
+	// Memory GC configuration
+	gcConfig domain.GCConfig
 }
 
 // NewServer creates a new HTTP handler server.
@@ -70,6 +73,7 @@ func NewServer(
 	userMemoryBudgetMax int,
 	summaryBudgetMin int,
 	summaryBudgetMax int,
+	gcConfig domain.GCConfig,
 ) *Server {
 	// Create tokenizer based on configuration
 	tok, err := tokenizer.New(tokenizer.Config{
@@ -117,6 +121,7 @@ func NewServer(
 		contextBuilderConfig: builderConfig,
 		maxFactsPerUser:      200, // Default capacity per user
 		maxSummariesPerUser:  20,  // Default sliding window size per user
+		gcConfig:             gcConfig,
 	}
 }
 
@@ -129,6 +134,7 @@ type resolvedSvc struct {
 	extractor   *service.ExtractorService
 	reconciler  *service.ReconcilerService
 	summarizer  *service.ConversationSummarizerService
+	gc          *service.GCService
 }
 
 type tenantSvcKey string
@@ -144,9 +150,12 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
 		auditRepo := tidb.NewReconcileAuditRepo(auth.TenantDB)
 		summaryRepo := tidb.NewConversationSummaryRepo(auth.TenantDB)
+		gcLogRepo := tidb.NewMemoryGCLogRepo(auth.TenantDB)
+		gcSnapshotRepo := tidb.NewMemoryGCSnapshotRepo(auth.TenantDB)
 		userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
 		reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
 		summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
+		gcSvc := service.NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, s.gcConfig, s.logger)
 		svc := resolvedSvc{
 			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
@@ -154,6 +163,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 			extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
 			reconciler:  reconciler,
 			summarizer:  summarizer,
+			gc:          gcSvc,
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -166,9 +176,12 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 	factRepo := tidb.NewUserProfileFactRepo(auth.TenantDB)
 	auditRepo := tidb.NewReconcileAuditRepo(auth.TenantDB)
 	summaryRepo := tidb.NewConversationSummaryRepo(auth.TenantDB)
+	gcLogRepo := tidb.NewMemoryGCLogRepo(auth.TenantDB)
+	gcSnapshotRepo := tidb.NewMemoryGCSnapshotRepo(auth.TenantDB)
 	userProf := service.NewUserProfileService(factRepo, s.maxFactsPerUser)
 	reconciler := service.NewReconcilerService(factRepo, auditRepo, s.llmClient)
 	summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
+	gcSvc := service.NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, s.gcConfig, s.logger)
 	svc := resolvedSvc{
 		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
@@ -176,6 +189,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		extractor:   service.NewExtractorService(factRepo, s.llmClient, userProf),
 		reconciler:  reconciler,
 		summarizer:  summarizer,
+		gc:          gcSvc,
 	}
 	s.svcCache.Store(key, svc)
 	return svc
@@ -199,6 +213,11 @@ func (s *Server) resolveReconcilerServices(auth *domain.AuthInfo) *service.Recon
 // resolveSummarizerServices returns the ConversationSummarizerService for a request.
 func (s *Server) resolveSummarizerServices(auth *domain.AuthInfo) *service.ConversationSummarizerService {
 	return s.resolveServices(auth).summarizer
+}
+
+// resolveGCServices returns the GCService for a request.
+func (s *Server) resolveGCServices(auth *domain.AuthInfo) *service.GCService {
+	return s.resolveServices(auth).gc
 }
 
 // Router builds the chi router with all routes and middleware.
@@ -261,6 +280,12 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Get("/summaries", s.listSummaries)
 		r.Get("/summaries/{id}", s.getSummary)
 		r.Delete("/summaries/{id}", s.deleteSummary)
+
+		// Memory Garbage Collection.
+		r.Post("/gc", s.triggerGC)
+		r.Post("/gc/preview", s.previewGC)
+		r.Get("/gc/logs", s.listGCLogs)
+		r.Get("/gc/snapshots/{id}", s.getGCSnapshot)
 
 	})
 

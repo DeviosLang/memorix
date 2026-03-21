@@ -97,6 +97,15 @@ func main() {
 	rateMW := rl.Middleware()
 
 	// Handler.
+	gcConfig := domain.GCConfig{
+		Enabled:                 cfg.GCEnabled,
+		Interval:                cfg.GCInterval,
+		StaleThreshold:          cfg.GCStaleThreshold,
+		LowConfidenceThreshold:  cfg.GCLowConfidenceThreshold,
+		MaxMemoriesPerTenant:    cfg.GCMaxMemoriesPerTenant,
+		SnapshotRetentionDays:   cfg.GCSnapshotRetentionDays,
+		BatchSize:               cfg.GCBatchSize,
+	}
 	srv := handler.NewServer(
 		tenantSvc,
 		uploadTaskRepo,
@@ -117,6 +126,7 @@ func main() {
 		cfg.UserMemoryBudgetMax,
 		cfg.SummaryBudgetMin,
 		cfg.SummaryBudgetMax,
+		gcConfig,
 	)
 	router := srv.Router(tenantMW, rateMW)
 
