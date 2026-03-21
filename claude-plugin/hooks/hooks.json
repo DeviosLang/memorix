@@ -1,5 +1,5 @@
 {
-  "description": "Mnemo memory hooks — automatic capture and recall of shared memories",
+  "description": "Mnemo memory hooks — automatic capture and recall of shared memories + auto-memory accumulation",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-memory-start.sh"
           }
         ]
       }
@@ -28,6 +32,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh",
             "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-memory-stop.sh",
+            "timeout": 30
           }
         ]
       }
