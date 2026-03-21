@@ -36,6 +36,41 @@ type MemoryRepo interface {
 	FTSAvailable() bool
 
 	ListBootstrap(ctx context.Context, limit int) ([]domain.Memory, error)
+
+	// GC (Memory Garbage Collection) methods
+
+	// TouchLastAccessed updates the last_accessed_at timestamp and increments access_count.
+	TouchLastAccessed(ctx context.Context, id string) error
+
+	// FindStaleMemories returns memories that haven't been accessed since the threshold.
+	// Only returns active memories with low confidence (below threshold).
+	FindStaleMemories(ctx context.Context, staleThreshold time.Time, lowConfidenceThreshold float64, limit int) ([]domain.Memory, error)
+
+	// FindLowImportanceMemories returns memories with low importance scores.
+	// Sorted by importance_score ascending, then by last_accessed_at ascending.
+	FindLowImportanceMemories(ctx context.Context, limit int) ([]domain.Memory, error)
+
+	// FindOverCapacityMemories returns the lowest importance memories that exceed the capacity limit.
+	// Returns memories sorted by importance_score ascending to delete the least valuable ones.
+	FindOverCapacityMemories(ctx context.Context, maxMemories int, limit int) ([]domain.Memory, error)
+
+	// MarkAsStale sets the state of memories to 'stale' for later cleanup.
+	// Returns the number of memories marked.
+	MarkAsStale(ctx context.Context, ids []string) (int64, error)
+
+	// HardDelete permanently removes memories from the database.
+	// Returns the number of memories deleted.
+	HardDelete(ctx context.Context, ids []string) (int64, error)
+
+	// UpdateImportanceScore updates the importance score for a memory.
+	UpdateImportanceScore(ctx context.Context, id string, score float64) error
+
+	// RecalculateImportanceScores recalculates importance scores for all active memories.
+	// Returns the number of memories updated.
+	RecalculateImportanceScores(ctx context.Context) (int64, error)
+
+	// GetAllForSnapshot returns all memories for a tenant (used for GC snapshots).
+	GetAllForSnapshot(ctx context.Context) ([]domain.Memory, error)
 }
 
 // TenantRepo manages tenant records in the control plane DB.
@@ -45,6 +80,7 @@ type TenantRepo interface {
 	GetByName(ctx context.Context, name string) (*domain.Tenant, error)
 	UpdateStatus(ctx context.Context, id string, status domain.TenantStatus) error
 	UpdateSchemaVersion(ctx context.Context, id string, version int) error
+	ListActive(ctx context.Context) ([]domain.Tenant, error)
 }
 
 // TenantTokenRepo manages tenant API tokens.
@@ -148,4 +184,37 @@ type ConversationSummaryRepo interface {
 
 	// CountByUserID returns the total number of summaries for a user.
 	CountByUserID(ctx context.Context, userID string) (int, error)
+}
+
+// MemoryGCLogRepo manages audit logs for memory garbage collection operations.
+type MemoryGCLogRepo interface {
+	// Create stores a new GC log entry.
+	Create(ctx context.Context, log *domain.MemoryGCLog) error
+
+	// BatchCreate stores multiple GC log entries in a single transaction.
+	BatchCreate(ctx context.Context, logs []domain.MemoryGCLog) error
+
+	// GetByGCRunID retrieves all logs for a specific GC run.
+	GetByGCRunID(ctx context.Context, gcRunID string) ([]domain.MemoryGCLog, error)
+
+	// ListByTenant retrieves GC logs for a tenant with pagination.
+	ListByTenant(ctx context.Context, tenantID string, limit, offset int) ([]domain.MemoryGCLog, int, error)
+
+	// DeleteExpired removes GC logs older than the retention period.
+	DeleteExpired(ctx context.Context, olderThan time.Time) (int64, error)
+}
+
+// MemoryGCSnapshotRepo manages pre-deletion snapshots for recovery.
+type MemoryGCSnapshotRepo interface {
+	// Create stores a new GC snapshot.
+	Create(ctx context.Context, snapshot *domain.MemoryGCSnapshot) error
+
+	// GetByID retrieves a snapshot by its ID.
+	GetByID(ctx context.Context, snapshotID string) (*domain.MemoryGCSnapshot, error)
+
+	// GetByGCRunID retrieves the snapshot for a specific GC run.
+	GetByGCRunID(ctx context.Context, gcRunID string) (*domain.MemoryGCSnapshot, error)
+
+	// DeleteExpired removes snapshots past their expiration date.
+	DeleteExpired(ctx context.Context, now time.Time) (int64, error)
 }

@@ -31,7 +31,7 @@ func NewMemoryRepo(db *sql.DB, autoModel string, ftsEnabled bool) *MemoryRepo {
 
 func (r *MemoryRepo) FTSAvailable() bool { return r.ftsAvailable.Load() }
 
-const allColumns = `id, content, source, tags, metadata, embedding, memory_type, agent_id, session_id, state, version, updated_by, created_at, updated_at, superseded_by`
+const allColumns = `id, content, source, tags, metadata, embedding, memory_type, agent_id, session_id, state, version, updated_by, created_at, updated_at, superseded_by, confidence, access_count, last_accessed_at, importance_score`
 
 func (r *MemoryRepo) Create(ctx context.Context, m *domain.Memory) error {
 	tagsJSON := marshalTags(m.Tags)
@@ -568,10 +568,14 @@ func scanMemory(row *sql.Row) (*domain.Memory, error) {
 	var m domain.Memory
 	var source, memoryType, agentID, sessionID, state, updatedBy, supersededBy sql.NullString
 	var tagsJSON, metadataJSON, embeddingStr []byte
+	var confidence, importanceScore sql.NullFloat64
+	var lastAccessedAt sql.NullTime
+	var accessCount sql.NullInt64
 
 	err := row.Scan(&m.ID, &m.Content, &source,
 		&tagsJSON, &metadataJSON, &embeddingStr, &memoryType, &agentID, &sessionID, &state, &m.Version, &updatedBy,
-		&m.CreatedAt, &m.UpdatedAt, &supersededBy)
+		&m.CreatedAt, &m.UpdatedAt, &supersededBy,
+		&confidence, &accessCount, &lastAccessedAt, &importanceScore)
 	if err == sql.ErrNoRows {
 		return nil, domain.ErrNotFound
 	}
@@ -593,6 +597,20 @@ func scanMemory(row *sql.Row) (*domain.Memory, error) {
 	m.SupersededBy = supersededBy.String
 	m.Tags = unmarshalTags(tagsJSON)
 	m.Metadata = unmarshalRawJSON(metadataJSON)
+	if confidence.Valid {
+		m.Confidence = confidence.Float64
+	} else {
+		m.Confidence = 1.0 // Default confidence
+	}
+	if accessCount.Valid {
+		m.AccessCount = int(accessCount.Int64)
+	}
+	if lastAccessedAt.Valid {
+		m.LastAccessedAt = &lastAccessedAt.Time
+	}
+	if importanceScore.Valid {
+		m.ImportanceScore = &importanceScore.Float64
+	}
 	return &m, nil
 }
 
@@ -601,10 +619,14 @@ func scanMemoryRows(rows *sql.Rows) (*domain.Memory, error) {
 	var m domain.Memory
 	var source, memoryType, agentID, sessionID, state, updatedBy, supersededBy sql.NullString
 	var tagsJSON, metadataJSON, embeddingStr []byte
+	var confidence, importanceScore sql.NullFloat64
+	var lastAccessedAt sql.NullTime
+	var accessCount sql.NullInt64
 
 	err := rows.Scan(&m.ID, &m.Content, &source,
 		&tagsJSON, &metadataJSON, &embeddingStr, &memoryType, &agentID, &sessionID, &state, &m.Version, &updatedBy,
-		&m.CreatedAt, &m.UpdatedAt, &supersededBy)
+		&m.CreatedAt, &m.UpdatedAt, &supersededBy,
+		&confidence, &accessCount, &lastAccessedAt, &importanceScore)
 	if err != nil {
 		return nil, fmt.Errorf("scan memory row: %w", err)
 	}
@@ -623,6 +645,20 @@ func scanMemoryRows(rows *sql.Rows) (*domain.Memory, error) {
 	m.SupersededBy = supersededBy.String
 	m.Tags = unmarshalTags(tagsJSON)
 	m.Metadata = unmarshalRawJSON(metadataJSON)
+	if confidence.Valid {
+		m.Confidence = confidence.Float64
+	} else {
+		m.Confidence = 1.0
+	}
+	if accessCount.Valid {
+		m.AccessCount = int(accessCount.Int64)
+	}
+	if lastAccessedAt.Valid {
+		m.LastAccessedAt = &lastAccessedAt.Time
+	}
+	if importanceScore.Valid {
+		m.ImportanceScore = &importanceScore.Float64
+	}
 	return &m, nil
 }
 
@@ -631,11 +667,15 @@ func scanMemoryRowsWithDistance(rows *sql.Rows) (*domain.Memory, error) {
 	var m domain.Memory
 	var source, memoryType, agentID, sessionID, state, updatedBy, supersededBy sql.NullString
 	var tagsJSON, metadataJSON, embeddingStr []byte
+	var confidence, importanceScore sql.NullFloat64
+	var lastAccessedAt sql.NullTime
+	var accessCount sql.NullInt64
 	var distance float64
 
 	err := rows.Scan(&m.ID, &m.Content, &source,
 		&tagsJSON, &metadataJSON, &embeddingStr, &memoryType, &agentID, &sessionID, &state, &m.Version, &updatedBy,
 		&m.CreatedAt, &m.UpdatedAt, &supersededBy,
+		&confidence, &accessCount, &lastAccessedAt, &importanceScore,
 		&distance)
 	if err != nil {
 		return nil, fmt.Errorf("scan memory row with distance: %w", err)
@@ -655,6 +695,20 @@ func scanMemoryRowsWithDistance(rows *sql.Rows) (*domain.Memory, error) {
 	m.SupersededBy = supersededBy.String
 	m.Tags = unmarshalTags(tagsJSON)
 	m.Metadata = unmarshalRawJSON(metadataJSON)
+	if confidence.Valid {
+		m.Confidence = confidence.Float64
+	} else {
+		m.Confidence = 1.0
+	}
+	if accessCount.Valid {
+		m.AccessCount = int(accessCount.Int64)
+	}
+	if lastAccessedAt.Valid {
+		m.LastAccessedAt = &lastAccessedAt.Time
+	}
+	if importanceScore.Valid {
+		m.ImportanceScore = &importanceScore.Float64
+	}
 	score := 1 - distance
 	m.Score = &score
 	return &m, nil
@@ -665,11 +719,15 @@ func scanMemoryRowsWithFTSScore(rows *sql.Rows) (*domain.Memory, error) {
 	var m domain.Memory
 	var source, memoryType, agentID, sessionID, state, updatedBy, supersededBy sql.NullString
 	var tagsJSON, metadataJSON, embeddingStr []byte
+	var confidence, importanceScore sql.NullFloat64
+	var lastAccessedAt sql.NullTime
+	var accessCount sql.NullInt64
 	var ftsScore float64
 
 	err := rows.Scan(&m.ID, &m.Content, &source,
 		&tagsJSON, &metadataJSON, &embeddingStr, &memoryType, &agentID, &sessionID, &state, &m.Version, &updatedBy,
 		&m.CreatedAt, &m.UpdatedAt, &supersededBy,
+		&confidence, &accessCount, &lastAccessedAt, &importanceScore,
 		&ftsScore)
 	if err != nil {
 		return nil, fmt.Errorf("scan memory row with fts score: %w", err)
@@ -689,6 +747,20 @@ func scanMemoryRowsWithFTSScore(rows *sql.Rows) (*domain.Memory, error) {
 	m.SupersededBy = supersededBy.String
 	m.Tags = unmarshalTags(tagsJSON)
 	m.Metadata = unmarshalRawJSON(metadataJSON)
+	if confidence.Valid {
+		m.Confidence = confidence.Float64
+	} else {
+		m.Confidence = 1.0
+	}
+	if accessCount.Valid {
+		m.AccessCount = int(accessCount.Int64)
+	}
+	if lastAccessedAt.Valid {
+		m.LastAccessedAt = &lastAccessedAt.Time
+	}
+	if importanceScore.Valid {
+		m.ImportanceScore = &importanceScore.Float64
+	}
 	m.Score = &ftsScore
 	return &m, nil
 }
@@ -753,4 +825,239 @@ func vecToString(embedding []float32) any {
 	}
 	sb.WriteByte(']')
 	return sb.String()
+}
+
+// GC (Memory Garbage Collection) methods
+
+// TouchLastAccessed updates the last_accessed_at timestamp and increments access_count.
+func (r *MemoryRepo) TouchLastAccessed(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE memories SET last_accessed_at = NOW(), access_count = access_count + 1 WHERE id = ?`,
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("touch last accessed: %w", err)
+	}
+	return nil
+}
+
+// FindStaleMemories returns memories that haven't been accessed since the threshold.
+// Only returns active memories with low confidence (below threshold).
+func (r *MemoryRepo) FindStaleMemories(ctx context.Context, staleThreshold time.Time, lowConfidenceThreshold float64, limit int) ([]domain.Memory, error) {
+	query := `SELECT ` + allColumns + ` FROM memories
+			  WHERE state = 'active'
+			  AND confidence < ?
+			  AND (last_accessed_at IS NULL OR last_accessed_at < ? OR last_accessed_at < ?)
+			  ORDER BY COALESCE(last_accessed_at, created_at) ASC
+			  LIMIT ?`
+
+	rows, err := r.db.QueryContext(ctx, query, lowConfidenceThreshold, staleThreshold, staleThreshold, limit)
+	if err != nil {
+		return nil, fmt.Errorf("find stale memories: %w", err)
+	}
+	defer rows.Close()
+
+	var memories []domain.Memory
+	for rows.Next() {
+		m, err := scanMemoryRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, *m)
+	}
+	return memories, rows.Err()
+}
+
+// FindLowImportanceMemories returns memories with low importance scores.
+// Sorted by importance_score ascending, then by last_accessed_at ascending.
+func (r *MemoryRepo) FindLowImportanceMemories(ctx context.Context, limit int) ([]domain.Memory, error) {
+	query := `SELECT ` + allColumns + ` FROM memories
+			  WHERE state = 'active'
+			  AND importance_score IS NOT NULL
+			  AND importance_score < 0.3
+			  ORDER BY importance_score ASC, COALESCE(last_accessed_at, created_at) ASC
+			  LIMIT ?`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("find low importance memories: %w", err)
+	}
+	defer rows.Close()
+
+	var memories []domain.Memory
+	for rows.Next() {
+		m, err := scanMemoryRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, *m)
+	}
+	return memories, rows.Err()
+}
+
+// FindOverCapacityMemories returns the lowest importance memories that exceed the capacity limit.
+// Returns memories sorted by importance_score ascending to delete the least valuable ones.
+func (r *MemoryRepo) FindOverCapacityMemories(ctx context.Context, maxMemories int, limit int) ([]domain.Memory, error) {
+	// First count total active memories
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM memories WHERE state = 'active'`,
+	).Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("count memories for capacity: %w", err)
+	}
+
+	// If under capacity, return empty
+	if count <= maxMemories {
+		return nil, nil
+	}
+
+	// Calculate how many to delete
+	toDelete := count - maxMemories
+	if toDelete > limit {
+		toDelete = limit
+	}
+
+	// Get the lowest importance memories
+	query := `SELECT ` + allColumns + ` FROM memories
+			  WHERE state = 'active'
+			  ORDER BY
+			    COALESCE(importance_score, 0) ASC,
+			    COALESCE(last_accessed_at, created_at) ASC,
+			    confidence ASC
+			  LIMIT ?`
+
+	rows, err := r.db.QueryContext(ctx, query, toDelete)
+	if err != nil {
+		return nil, fmt.Errorf("find over capacity memories: %w", err)
+	}
+	defer rows.Close()
+
+	var memories []domain.Memory
+	for rows.Next() {
+		m, err := scanMemoryRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, *m)
+	}
+	return memories, rows.Err()
+}
+
+// MarkAsStale sets the state of memories to 'stale' for later cleanup.
+// Returns the number of memories marked.
+func (r *MemoryRepo) MarkAsStale(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := `UPDATE memories SET state = 'stale', updated_at = NOW() WHERE id IN (` + strings.Join(placeholders, ",") + `) AND state = 'active'`
+
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("mark as stale: %w", err)
+	}
+
+	return result.RowsAffected()
+}
+
+// HardDelete permanently removes memories from the database.
+// Returns the number of memories deleted.
+func (r *MemoryRepo) HardDelete(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := `DELETE FROM memories WHERE id IN (` + strings.Join(placeholders, ",") + `)`
+
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("hard delete: %w", err)
+	}
+
+	return result.RowsAffected()
+}
+
+// UpdateImportanceScore updates the importance score for a memory.
+func (r *MemoryRepo) UpdateImportanceScore(ctx context.Context, id string, score float64) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE memories SET importance_score = ?, updated_at = NOW() WHERE id = ?`,
+		score, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update importance score: %w", err)
+	}
+	return nil
+}
+
+// RecalculateImportanceScores recalculates importance scores for all active memories.
+// Returns the number of memories updated.
+func (r *MemoryRepo) RecalculateImportanceScores(ctx context.Context) (int64, error) {
+	// Importance score formula:
+	// - Source weight: explicit (1.0) > inferred (0.7)
+	// - Confidence weight: 0.0-1.0
+	// - Access frequency weight: normalized by max access count
+	// - Recency weight: more recent access = higher score
+	query := `UPDATE memories m
+			  JOIN (
+			    SELECT id,
+			      CASE
+			        WHEN source = 'explicit' OR source = 'user' THEN 1.0
+			        WHEN source = 'inferred' THEN 0.7
+			        ELSE 0.5
+			      END AS source_weight,
+			      confidence,
+			      (SELECT COALESCE(MAX(access_count), 1) FROM memories WHERE state = 'active') AS max_access
+			    FROM memories
+			    WHERE state = 'active'
+			  ) calc ON m.id = calc.id
+			  SET m.importance_score = (
+			    calc.source_weight * 0.3 +
+			    calc.confidence * 0.3 +
+			    (calc.access_count / GREATEST(calc.max_access, 1)) * 0.4
+			  ),
+			  m.updated_at = NOW()
+			  WHERE m.state = 'active'`
+
+	result, err := r.db.ExecContext(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("recalculate importance scores: %w", err)
+	}
+
+	return result.RowsAffected()
+}
+
+// GetAllForSnapshot returns all memories for a tenant (used for GC snapshots).
+func (r *MemoryRepo) GetAllForSnapshot(ctx context.Context) ([]domain.Memory, error) {
+	query := `SELECT ` + allColumns + ` FROM memories ORDER BY created_at ASC`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("get all for snapshot: %w", err)
+	}
+	defer rows.Close()
+
+	var memories []domain.Memory
+	for rows.Next() {
+		m, err := scanMemoryRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, *m)
+	}
+	return memories, rows.Err()
 }
