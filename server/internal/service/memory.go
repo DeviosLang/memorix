@@ -65,6 +65,7 @@ func (s *MemoryService) Create(ctx context.Context, agentID, content string, tag
 	for _, id := range result.InsightIDs {
 		mem, err := s.memories.GetByID(ctx, id)
 		if err != nil {
+			slog.Warn("failed to fetch insight for tag/metadata update", "id", id, "err", err)
 			continue
 		}
 		if len(tags) > 0 {
@@ -74,7 +75,9 @@ func (s *MemoryService) Create(ctx context.Context, agentID, content string, tag
 			mem.Metadata = metadata
 		}
 		if len(tags) > 0 || len(metadata) > 0 {
-			_ = s.memories.UpdateOptimistic(ctx, mem, 0)
+			if err := s.memories.UpdateOptimistic(ctx, mem, 0); err != nil {
+				slog.Warn("failed to apply tags/metadata to insight", "id", id, "err", err)
+			}
 		}
 	}
 
@@ -363,6 +366,7 @@ func (s *MemoryService) Update(ctx context.Context, agentName, id, content strin
 			"actual_version", current.Version,
 			"agent", agentName,
 		)
+		return nil, domain.ErrConflict
 	}
 
 	contentChanged := false
@@ -392,7 +396,7 @@ func (s *MemoryService) Update(ctx context.Context, agentName, id, content strin
 		current.Embedding = embedding
 	}
 
-	if err := s.memories.UpdateOptimistic(ctx, current, 0); err != nil {
+	if err := s.memories.UpdateOptimistic(ctx, current, current.Version); err != nil {
 		return nil, err
 	}
 

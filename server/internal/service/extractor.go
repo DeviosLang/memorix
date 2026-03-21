@@ -633,7 +633,7 @@ func (s *ExtractorService) dedupAndWrite(ctx context.Context, userID string, fac
 	return result, nil
 }
 
-// isSimilarValue checks if two values are similar (> 90% overlap).
+// isSimilarValue checks if two values are similar (> 60% overlap by length).
 // This is a simple implementation using string comparison.
 // A more sophisticated implementation would use embeddings for semantic similarity.
 func (s *ExtractorService) isSimilarValue(a, b string) bool {
@@ -644,21 +644,16 @@ func (s *ExtractorService) isSimilarValue(a, b string) bool {
 		return true
 	}
 
-	// Simple containment check
+	// Containment check with a ratio guard to avoid single-word matches being too broad.
+	// Uses 0.6 threshold: "Python programming" / "Python programming language" = 0.67 (similar),
+	// but "Python" / "Python programming" = 0.33 (not similar enough).
 	if strings.Contains(a, b) || strings.Contains(b, a) {
-		// Calculate overlap ratio
-		shorter := a
+		shorter, longer := a, b
 		if len(b) < len(a) {
-			shorter = b
+			shorter, longer = b, a
 		}
-		longer := b
-		if len(a) > len(b) {
-			longer = a
-		}
-
-		// If shorter is contained in longer and the ratio is > 0.9
 		ratio := float64(len(shorter)) / float64(len(longer))
-		return ratio > 0.9
+		return ratio >= 0.6
 	}
 
 	return false

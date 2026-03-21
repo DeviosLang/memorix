@@ -220,7 +220,8 @@ func (l *RulesLoader) loadRuleFile(path string, level domain.RulesLevel, prevLoa
 				NewModTime: &file.ModTime,
 			}
 		}
-	} else {
+	} else if l.cache.loadTime != (time.Time{}) {
+		// Only report "created" if a previous load has occurred (not the very first load).
 		change = &domain.RulesChange{
 			Path:      path,
 			Level:     level,
@@ -319,7 +320,9 @@ func (l *RulesLoader) parseFrontmatter(content []byte) (domain.RuleFrontmatter, 
 
 	// Extract frontmatter YAML
 	fmBytes := content[4 : endIdx+4]
-	body = string(content[endIdx+8:]) // Skip both delimiters
+	// Layout: "---\n"(4) + yaml + "\n---\n"(5) + optional "\n" = body starts at endIdx+10
+	// endIdx is relative to content[4:], so absolute body offset = endIdx + 4 + 5 + 1 = endIdx + 10
+	body = string(content[endIdx+10:])
 
 	// Parse YAML
 	if err := yaml.Unmarshal(fmBytes, &frontmatter); err != nil {

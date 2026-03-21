@@ -209,11 +209,15 @@ These should not appear.
 	})
 
 	t.Run("ChangeDetection", func(t *testing.T) {
+		// Use a fresh loader to ensure a clean cache (shared loader from previous
+		// sub-tests already has populated cache, which would falsify "first load" semantics).
+		freshLoader := NewRulesLoader(config, nil)
+
 		// First load
 		req := &domain.RulesLoadRequest{
 			ActiveFilePaths: []string{"test.py"},
 		}
-		result, err := loader.Load(req)
+		result, err := freshLoader.Load(req)
 		if err != nil {
 			t.Fatalf("failed to load rules: %v", err)
 		}
@@ -228,7 +232,7 @@ These should not appear.
 		}
 
 		// Second load should detect changes
-		result, err = loader.Load(req)
+		result, err = freshLoader.Load(req)
 		if err != nil {
 			t.Fatalf("failed to load rules: %v", err)
 		}
@@ -348,9 +352,6 @@ func TestRulesLoader_MatchPath(t *testing.T) {
 }
 
 func TestRulesInjector_InjectRules(t *testing.T) {
-	config := domain.DefaultRulesInjectionConfig()
-	injector := NewRulesInjector(config, nil)
-
 	rules := &domain.LoadedRules{
 		MergedContent: "# Project Rules\n\n- Rule 1\n- Rule 2",
 	}

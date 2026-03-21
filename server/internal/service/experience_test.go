@@ -2,12 +2,8 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"testing"
-	"time"
 
 	"github.com/devioslang/memorix/server/internal/domain"
-	"github.com/devioslang/memorix/server/internal/embed"
 	"github.com/devioslang/memorix/server/internal/vectorstore"
 )
 

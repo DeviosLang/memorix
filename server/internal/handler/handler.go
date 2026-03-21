@@ -20,6 +20,7 @@ import (
 	"github.com/devioslang/memorix/server/internal/repository/tidb"
 	"github.com/devioslang/memorix/server/internal/service"
 	"github.com/devioslang/memorix/server/internal/tokenizer"
+	"github.com/devioslang/memorix/server/internal/vectorstore"
 )
 
 // Server holds the HTTP handlers and their dependencies.
@@ -34,6 +35,9 @@ type Server struct {
 	ingestMode  service.IngestMode
 	logger      *slog.Logger
 	svcCache    sync.Map
+
+	// Experience layer (optional — nil if vector store not configured)
+	vectorStore vectorstore.VectorStore
 
 	// Context window management
 	tokenizer           tokenizer.Tokenizer
@@ -67,6 +71,7 @@ func NewServer(
 	ftsEnabled bool,
 	ingestMode service.IngestMode,
 	logger *slog.Logger,
+	vectorStore vectorstore.VectorStore,
 	maxContextTokens int,
 	tokenizerType string,
 	tokenizerModel string,
@@ -126,6 +131,7 @@ func NewServer(
 		ftsEnabled:           ftsEnabled,
 		ingestMode:           ingestMode,
 		logger:               logger,
+		vectorStore:          vectorStore,
 		tokenizer:            tok,
 		contextWindowConfig:  contextConfig,
 		contextBuilderConfig: builderConfig,
@@ -171,6 +177,10 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
 		gcSvc := service.NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, s.gcConfig, s.logger)
 		statsSvc := service.NewMemoryStatsService(factRepo, summaryRepo, memRepo, s.tokenizer, s.maxFactsPerUser, s.maxSummariesPerUser, s.gcConfig.MaxMemoriesPerTenant)
+		var expSvc *service.ExperienceService
+		if s.vectorStore != nil {
+			expSvc = service.NewExperienceService(s.vectorStore, s.embedder, s.llmClient, 0)
+		}
 		svc := resolvedSvc{
 			memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 			ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
@@ -180,6 +190,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 			summarizer:  summarizer,
 			gc:          gcSvc,
 			stats:       statsSvc,
+			experience:  expSvc,
 		}
 		s.svcCache.Store(key, svc)
 		return svc
@@ -199,6 +210,10 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 	summarizer := service.NewConversationSummarizerService(summaryRepo, s.llmClient, s.maxSummariesPerUser)
 	gcSvc := service.NewGCService(memRepo, gcLogRepo, gcSnapshotRepo, s.gcConfig, s.logger)
 	statsSvc := service.NewMemoryStatsService(factRepo, summaryRepo, memRepo, s.tokenizer, s.maxFactsPerUser, s.maxSummariesPerUser, s.gcConfig.MaxMemoriesPerTenant)
+	var expSvc *service.ExperienceService
+	if s.vectorStore != nil {
+		expSvc = service.NewExperienceService(s.vectorStore, s.embedder, s.llmClient, 0)
+	}
 	svc := resolvedSvc{
 		memory:      service.NewMemoryService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
 		ingest:      service.NewIngestService(memRepo, s.llmClient, s.embedder, s.autoModel, s.ingestMode),
@@ -208,6 +223,7 @@ func (s *Server) resolveServices(auth *domain.AuthInfo) resolvedSvc {
 		summarizer:  summarizer,
 		gc:          gcSvc,
 		stats:       statsSvc,
+		experience:  expSvc,
 	}
 	s.svcCache.Store(key, svc)
 	return svc

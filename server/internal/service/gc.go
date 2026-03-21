@@ -89,6 +89,8 @@ func (s *GCService) Run(ctx context.Context, tenantID string, dryRun bool) (*dom
 
 	// Combine all memories to delete, avoiding duplicates
 	memoriesToDelete := s.mergeMemories(staleMemories, lowImportanceMemories, overCapacityMemories)
+	// TotalDeleted will be updated to the actual count after deletion;
+	// set the planned count now so dry-run callers see the preview value.
 	result.TotalDeleted = len(memoriesToDelete)
 
 	if len(memoriesToDelete) == 0 {
@@ -125,6 +127,9 @@ func (s *GCService) Run(ctx context.Context, tenantID string, dryRun bool) (*dom
 		if err != nil {
 			return nil, fmt.Errorf("delete memories: %w", err)
 		}
+
+		// Update TotalDeleted with the actual number of rows removed.
+		result.TotalDeleted = int(deleted)
 
 		s.logger.Info("deleted memories",
 			"gc_run_id", gcRunID,

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -385,7 +386,8 @@ func TestHybridRetriever_TokenBudget(t *testing.T) {
 	// Create many experiences to exceed token budget
 	var experiences []domain.Experience
 	for i := 0; i < 20; i++ {
-		content := "This is a long experience entry about microservices and distributed systems architecture with many details that should increase token count significantly."
+		// Use unique content per entry so deduplication does not collapse them into one.
+		content := fmt.Sprintf("Experience #%d: This is a long experience entry about microservices and distributed systems architecture with many details that should increase token count significantly for entry number %d.", i, i)
 		experiences = append(experiences, domain.Experience{
 			ExperienceID: string(rune('a' + i)),
 			UserID:       "user-1",
@@ -402,9 +404,9 @@ func TestHybridRetriever_TokenBudget(t *testing.T) {
 	config := domain.DefaultHybridRetrieverConfig()
 	retriever := NewHybridRetriever(profileRepo, summaryRepo, expStore, embedder, config)
 
-	// Set a low token budget
+	// Set a low token budget (well below the ~320 tokens from 10 unique entries)
 	ctx := &domain.HybridRetrievalContext{
-		MaxTokens: 500,
+		MaxTokens: 100,
 	}
 
 	result, err := retriever.Retrieve(context.Background(), "user-1", "architecture patterns", ctx)

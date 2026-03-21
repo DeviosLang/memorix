@@ -848,11 +848,11 @@ func (r *MemoryRepo) FindStaleMemories(ctx context.Context, staleThreshold time.
 	query := `SELECT ` + allColumns + ` FROM memories
 			  WHERE state = 'active'
 			  AND confidence < ?
-			  AND (last_accessed_at IS NULL OR last_accessed_at < ? OR last_accessed_at < ?)
+			  AND (last_accessed_at IS NULL OR last_accessed_at < ?)
 			  ORDER BY COALESCE(last_accessed_at, created_at) ASC
 			  LIMIT ?`
 
-	rows, err := r.db.QueryContext(ctx, query, lowConfidenceThreshold, staleThreshold, staleThreshold, limit)
+	rows, err := r.db.QueryContext(ctx, query, lowConfidenceThreshold, staleThreshold, limit)
 	if err != nil {
 		return nil, fmt.Errorf("find stale memories: %w", err)
 	}
@@ -1022,6 +1022,7 @@ func (r *MemoryRepo) RecalculateImportanceScores(ctx context.Context) (int64, er
 			        ELSE 0.5
 			      END AS source_weight,
 			      confidence,
+			      access_count,
 			      (SELECT COALESCE(MAX(access_count), 1) FROM memories WHERE state = 'active') AS max_access
 			    FROM memories
 			    WHERE state = 'active'

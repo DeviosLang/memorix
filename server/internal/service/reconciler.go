@@ -518,15 +518,10 @@ func (s *ReconcilerService) performUpdate(ctx context.Context, existing *domain.
 
 // performAppend adds the new fact alongside the old fact and logs the decision.
 func (s *ReconcilerService) performAppend(ctx context.Context, existing *domain.UserProfileFact, req domain.ReconcileRequest, reason string) (*domain.ReconcileResult, error) {
-	// Create a new fact with a modified key to avoid collision
-	newKey := req.Key
-	// For collection-type keys, we just add as-is
-	// For single-value keys that should be appended, we could modify the key
-	// For now, we append the value to the existing key with a suffix
-
-	// Check if this is truly a collection or if we need a new key
-	// Simple approach: create a new fact with a UUID suffix on the key
+	// Create a new fact with a UUID suffix on the key to avoid unique constraint violation.
+	// The (user_id, category, key) triplet must be unique, so we differentiate the new entry.
 	newFactID := uuid.New().String()
+	newKey := req.Key + ":" + newFactID
 	now := time.Now()
 
 	newFact := &domain.UserProfileFact{

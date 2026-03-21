@@ -315,7 +315,7 @@ func TestReconcile_WithConflict_NoLLM_Updates(t *testing.T) {
 	}
 }
 
-func TestReconcile_WithConflict_LLMDecidesUpdate(t *testing.T) {
+func TestReconcile_WithConflict_NoLLMFallbackUpdate(t *testing.T) {
 	factRepo := newMockReconcileFactRepo()
 	auditRepo := newMockAuditRepo()
 

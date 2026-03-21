@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/devioslang/memorix/server/internal/domain"
 	"github.com/devioslang/memorix/server/internal/llm"
@@ -133,6 +134,44 @@ func (m *memoryRepoMock) FTSSearch(ctx context.Context, query string, f domain.M
 func (m *memoryRepoMock) FTSAvailable() bool { return m.ftsAvail }
 
 func (m *memoryRepoMock) ListBootstrap(ctx context.Context, limit int) ([]domain.Memory, error) {
+	return nil, nil
+}
+
+// GC interface methods (stubs required to satisfy repository.MemoryRepo)
+
+func (m *memoryRepoMock) TouchLastAccessed(ctx context.Context, id string) error {
+	return nil
+}
+
+func (m *memoryRepoMock) FindStaleMemories(ctx context.Context, staleThreshold time.Time, lowConfidenceThreshold float64, limit int) ([]domain.Memory, error) {
+	return nil, nil
+}
+
+func (m *memoryRepoMock) FindLowImportanceMemories(ctx context.Context, limit int) ([]domain.Memory, error) {
+	return nil, nil
+}
+
+func (m *memoryRepoMock) FindOverCapacityMemories(ctx context.Context, maxMemories int, limit int) ([]domain.Memory, error) {
+	return nil, nil
+}
+
+func (m *memoryRepoMock) MarkAsStale(ctx context.Context, ids []string) (int64, error) {
+	return 0, nil
+}
+
+func (m *memoryRepoMock) HardDelete(ctx context.Context, ids []string) (int64, error) {
+	return int64(len(ids)), nil
+}
+
+func (m *memoryRepoMock) UpdateImportanceScore(ctx context.Context, id string, score float64) error {
+	return nil
+}
+
+func (m *memoryRepoMock) RecalculateImportanceScores(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+
+func (m *memoryRepoMock) GetAllForSnapshot(ctx context.Context) ([]domain.Memory, error) {
 	return nil, nil
 }
 
@@ -804,9 +843,6 @@ func TestGatherExistingMemoriesTotalOutageReturnsError(t *testing.T) {
 	_, err := svc.gatherExistingMemories(context.Background(), "agent-1", []string{"test fact"})
 	if err == nil {
 		t.Fatal("expected error on total search outage, got nil")
-	}
-	if !errors.Is(err, err) { // sanity check
-		t.Fatalf("unexpected error type: %v", err)
 	}
 }
 

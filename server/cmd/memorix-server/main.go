@@ -131,6 +131,7 @@ func main() {
 		cfg.FTSEnabled,
 		service.IngestMode(cfg.IngestMode),
 		logger,
+		nil, // vectorStore: not configured by default; set up separately if needed
 		cfg.MaxContextTokens,
 		cfg.TokenizerType,
 		cfg.TokenizerModel,
