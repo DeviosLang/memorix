@@ -45,9 +45,9 @@ go run ./cmd/memorix-server
 |----------|-------------|
 | `MNEMO_DSN` | MySQL DSN. Format: `user:pass@tcp(host:port)/dbname?parseTime=true`. Always quote in shell to avoid issues with `tcp(...)` parentheses. |
 
-### LLM (required for memory write)
+### LLM (required for memory writes)
 
-Memory writes use a two-phase smart pipeline: the LLM extracts atomic facts from content, then reconciles them against existing memories to prevent duplicates. **Without LLM config, all write requests will fail.**
+Memory writes use a two-phase smart pipeline: the LLM extracts atomic facts from content, then reconciles them against existing memories to prevent duplicates. **Without LLM config, all write requests will fail** (unless `MNEMO_INGEST_MODE=raw`).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -77,7 +77,7 @@ MNEMO_LLM_MODEL=deepseek-chat
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MNEMO_INGEST_MODE` | `smart` | `smart` — LLM extract + reconcile. `raw` — store as-is, no LLM needed (used by the `/ingest` endpoint). |
+| `MNEMO_INGEST_MODE` | `smart` | `smart` — LLM extract + reconcile (recommended). `raw` — store as-is, no LLM needed. |
 
 ### Embedding (optional — enables vector search)
 
@@ -105,6 +105,64 @@ Without embedding, the server falls back to keyword search only.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MNEMO_FTS_ENABLED` | `false` | Enable FULLTEXT INDEX search. Only set to `true` if your TiDB cluster supports `FTS_MATCH_WORD`. Leave `false` for TiDB Serverless / TiDB Zero. |
+
+### Context Window
+
+Token-budgeted context assembly for agent system prompts.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MNEMO_MAX_CONTEXT_TOKENS` | `8192` | Maximum tokens in an assembled context window |
+| `MNEMO_TOKENIZER_TYPE` | `tiktoken` | Token counter: `tiktoken` or `estimate` |
+| `MNEMO_TOKENIZER_MODEL` | `gpt-4` | Model used for tiktoken encoding selection |
+| `MNEMO_SYSTEM_PROMPT_RESERVED_TOKENS` | `500` | Token budget reserved for system prompt layer |
+| `MNEMO_MEMORY_RESERVED_TOKENS` | `2000` | Token budget reserved for memory injection |
+| `MNEMO_METADATA_RESERVED_TOKENS` | `200` | Token budget reserved for session metadata |
+| `MNEMO_USER_MEMORY_BUDGET_MIN` | `500` | Minimum tokens for user memory layer |
+| `MNEMO_USER_MEMORY_BUDGET_MAX` | `1500` | Maximum tokens for user memory layer |
+| `MNEMO_SUMMARY_BUDGET_MIN` | `300` | Minimum tokens for conversation summary layer |
+| `MNEMO_SUMMARY_BUDGET_MAX` | `800` | Maximum tokens for conversation summary layer |
+
+### Memory GC
+
+Automatically removes stale, low-confidence, and over-capacity memories on a configurable schedule.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MNEMO_GC_ENABLED` | `true` | Enable automatic background GC |
+| `MNEMO_GC_INTERVAL` | `24h` | How often GC runs (e.g. `6h`, `24h`) |
+| `MNEMO_GC_STALE_THRESHOLD` | `2160h` (90d) | Memories not accessed for this duration become stale candidates |
+| `MNEMO_GC_LOW_CONFIDENCE_THRESHOLD` | `0.5` | Memories below this confidence score are GC candidates |
+| `MNEMO_GC_MAX_MEMORIES_PER_TENANT` | `10000` | When exceeded, lowest-importance memories are pruned |
+| `MNEMO_GC_SNAPSHOT_RETENTION_DAYS` | `30` | Days to keep GC snapshots for recovery audit |
+| `MNEMO_GC_BATCH_SIZE` | `100` | Memories processed per GC iteration |
+
+### Rules
+
+Inject hierarchical Markdown rules (organization → user → project → module) into agent system prompts. Module-level rules support YAML frontmatter with `paths:` glob patterns to activate rules for specific file types.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MNEMO_RULES_ENABLED` | `true` | Enable rules loading and injection |
+| `MNEMO_RULES_ORGANIZATION_PATH` | `/etc/agent/rules.md` | Path to organization-level rules file |
+| `MNEMO_RULES_USER_PATH` | `~/.agent/rules.md` | Path to user-level rules file |
+| `MNEMO_RULES_INJECTION_ENABLED` | `true` | Inject loaded rules into system prompts |
+| `MNEMO_RULES_INJECTION_MAX_TOKENS` | `2000` | Maximum tokens for injected rules content |
+| `MNEMO_RULES_INJECTION_HEADER` | `## Project Rules\n\n` | Header prepended to the injected rules section |
+
+### Experience Layer (optional — requires external vector store)
+
+Semantic recall over long-term user experiences. Disabled by default; requires a running Qdrant or Chroma instance.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MNEMO_EXPERIENCE_ENABLED` | `false` | Enable the experience recall layer |
+| `MNEMO_EXPERIENCE_BACKEND` | `qdrant` | Vector store backend: `qdrant` or `chroma` |
+| `MNEMO_EXPERIENCE_MAX_PER_USER` | `10000` | Maximum stored experiences per user |
+| `MNEMO_QDRANT_URL` | `http://localhost:6333` | Qdrant server URL |
+| `MNEMO_QDRANT_API_KEY` | — | Qdrant API key (if auth enabled) |
+| `MNEMO_CHROMA_URL` | `http://localhost:8000` | Chroma server URL |
+| `MNEMO_CHROMA_DISTANCE` | `cosine` | Chroma distance metric: `cosine`, `l2`, or `ip` |
 
 ### Tenant connection pool
 
@@ -143,19 +201,26 @@ Save the returned `id` — it is used in all memory operations.
 ### Memory operations
 
 ```bash
-# Create a memory
+# Create a memory (smart ingest: LLM extracts + reconciles facts)
 curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/memories \
   -H "Content-Type: application/json" \
   -H "X-Memorix-Agent-Id: my-agent" \
   -d '{"content":"The server requires LLM config for writes","tags":["infra"]}'
 
-# Search memories
+# Search memories (hybrid vector + keyword)
 curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/memories?q=server&limit=10"
 
 # Get by ID
 curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/memories/<id>"
 
-# Update
+# Update with optimistic locking
+# If-Match version must match — returns 409 Conflict on mismatch
+curl -X PUT http://localhost:8080/v1alpha1/memorix/<tenantID>/memories/<id> \
+  -H "Content-Type: application/json" \
+  -H "If-Match: 3" \
+  -d '{"content":"updated content","tags":["infra"]}'
+
+# Update without version check (last-write-wins)
 curl -X PUT http://localhost:8080/v1alpha1/memorix/<tenantID>/memories/<id> \
   -H "Content-Type: application/json" \
   -d '{"content":"updated content","tags":["infra"]}'
@@ -196,18 +261,108 @@ curl -X PUT http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts
   -d '{"value": "Jane Doe"}'
 
 # Delete a fact
-curl -X DELETE http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts/<fact_id>"
+curl -X DELETE "http://localhost:8080/v1alpha1/memorix/<tenantID>/user-profile/facts/<fact_id>"
 ```
 
 **Fact Categories:**
-- `personal` - Name, role, location, etc.
-- `preference` - Language, framework, style preferences
-- `goal` - User goals and objectives
-- `skill` - Known skills and expertise
+- `personal` — Name, role, location, etc.
+- `preference` — Language, framework, style preferences
+- `goal` — User goals and objectives
+- `skill` — Known skills and expertise
 
 **Fact Sources:**
-- `explicit` - User explicitly provided (confidence typically 1.0)
-- `inferred` - Model inferred from conversation (confidence 0.0-1.0)
+- `explicit` — User explicitly provided (confidence typically 1.0)
+- `inferred` — Model inferred from conversation (confidence 0.0–1.0)
+
+### Conversation Summaries
+
+```bash
+# Summarize a session
+curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/summaries \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "messages": [
+      {"role": "user", "content": "How do I set up the server?"},
+      {"role": "assistant", "content": "Run go run ./cmd/memorix-server with MNEMO_DSN set."}
+    ]
+  }'
+
+# List summaries for a user
+curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/summaries?user_id=user-123"
+```
+
+### Context Window
+
+```bash
+# Assemble a token-budgeted context window
+curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/context \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "query": "How do I configure embeddings?",
+    "max_tokens": 4096
+  }'
+# → {"context": "...", "total_tokens": 1234, "truncated": false, "layers": {...}}
+
+# Count tokens in a message list
+curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/context/count \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+### Memory GC
+
+```bash
+# Preview what GC would clean up (dry run)
+curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/gc/preview
+
+# Trigger GC immediately (real deletion)
+curl -X POST http://localhost:8080/v1alpha1/memorix/<tenantID>/gc
+
+# List GC run history
+curl "http://localhost:8080/v1alpha1/memorix/<tenantID>/gc/logs"
+```
+
+### Rules
+
+Module-level rule files support YAML frontmatter to restrict activation to specific file paths:
+
+```markdown
+---
+paths:
+  - "*.py"
+  - "**/*.py"
+name: Python Rules
+enabled: true
+---
+
+# Python Rules
+
+- Use snake_case for variables
+- Follow PEP 8 style guide
+```
+
+```bash
+# Load rules for active files
+curl -X POST http://localhost:8080/v1alpha1/rules/load \
+  -H "Content-Type: application/json" \
+  -d '{"active_file_paths": ["main.py", "utils/helpers.py"]}'
+
+# Check if any rule files have changed since last load
+curl "http://localhost:8080/v1alpha1/rules/changes"
+
+# Inject rules into a system prompt
+curl -X POST http://localhost:8080/v1alpha1/rules/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "system_instructions": "You are a helpful assistant.",
+    "rules": {"merged_content": "# Rules\n\n- Be helpful"},
+    "inject_at": "start"
+  }'
+```
 
 ## Build
 
