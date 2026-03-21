@@ -148,12 +148,44 @@ type Config struct {
 	// Chroma configuration
 	ChromaURL      string
 	ChromaDistance string // "l2", "ip", "cosine"
+
+	// Rules configuration (Issue #11: 工程化与团队协作)
+
+	// RulesEnabled controls whether the rules system is enabled.
+	// Default is true.
+	RulesEnabled bool
+
+	// RulesOrganizationPath is the path to organization-level rules.
+	// Default: /etc/agent/rules.md
+	RulesOrganizationPath string
+
+	// RulesUserPath is the path to user-level rules.
+	// Default: ~/.agent/rules.md
+	RulesUserPath string
+
+	// RulesInjectionEnabled controls whether rules are injected into system prompts.
+	// Default is true.
+	RulesInjectionEnabled bool
+
+	// RulesInjectionMaxTokens is the maximum tokens for rules content.
+	// Default is 2000.
+	RulesInjectionMaxTokens int
+
+	// RulesInjectionHeader is prepended to rules content.
+	// Default: "## Project Rules\n\n"
+	RulesInjectionHeader string
 }
 
 func Load() (*Config, error) {
 	dsn := os.Getenv("MNEMO_DSN")
 	if dsn == "" {
 		return nil, fmt.Errorf("MNEMO_DSN is required")
+	}
+
+	// Get home directory for user-level paths
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "" // Will fall back to env var or empty
 	}
 
 	cfg := &Config{
@@ -209,6 +241,19 @@ func Load() (*Config, error) {
 		QdrantAPIKey:         os.Getenv("MNEMO_QDRANT_API_KEY"),
 		ChromaURL:            envOr("MNEMO_CHROMA_URL", "http://localhost:8000"),
 		ChromaDistance:       envOr("MNEMO_CHROMA_DISTANCE", "cosine"),
+
+		// Rules configuration
+		RulesEnabled:             envBool("MNEMO_RULES_ENABLED", true),
+		RulesOrganizationPath:    envOr("MNEMO_RULES_ORGANIZATION_PATH", "/etc/agent/rules.md"),
+		RulesUserPath:            envOr("MNEMO_RULES_USER_PATH", func() string {
+			if homeDir != "" {
+				return homeDir + "/.agent/rules.md"
+			}
+			return ""
+		}()),
+		RulesInjectionEnabled:    envBool("MNEMO_RULES_INJECTION_ENABLED", true),
+		RulesInjectionMaxTokens:  envInt("MNEMO_RULES_INJECTION_MAX_TOKENS", 2000),
+		RulesInjectionHeader:     envOr("MNEMO_RULES_INJECTION_HEADER", "## Project Rules\n\n"),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {
