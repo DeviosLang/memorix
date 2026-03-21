@@ -177,3 +177,24 @@ CREATE TABLE IF NOT EXISTS reconcile_audit_logs (
   INDEX idx_fact_audit (fact_id, created_at DESC),
   INDEX idx_category_audit (user_id, category, created_at DESC)
 );
+
+-- Conversation summaries (recent conversation summary layer).
+-- Based on ChatGPT's "fourth layer" - pre-computed summaries of recent conversations.
+-- Advantages: zero retrieval latency, provides quick context for ongoing conversations.
+CREATE TABLE IF NOT EXISTS conversation_summaries (
+  summary_id     VARCHAR(36)     PRIMARY KEY,
+  user_id        VARCHAR(100)    NOT NULL,
+  session_id     VARCHAR(100)    NULL
+                 COMMENT 'Session ID this summary originated from',
+  title          VARCHAR(200)    NOT NULL
+                 COMMENT 'LLM-generated conversation title',
+  summary        VARCHAR(500)    NOT NULL
+                 COMMENT 'Summary within 200 Chinese characters (~500 bytes)',
+  key_topics     JSON            NULL
+                 COMMENT 'Array of key topic tags',
+  user_intent    VARCHAR(300)    NOT NULL
+                 COMMENT 'Core user intent from conversation',
+  created_at     TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_summaries (user_id, created_at DESC),
+  INDEX idx_session (session_id)
+) COMMENT 'Recent conversation summaries - sliding window of 15-20 per user';

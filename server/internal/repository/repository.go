@@ -119,3 +119,33 @@ type ReconcileAuditRepo interface {
 	// DeleteByUserID deletes all audit logs for a user (used when user is deleted).
 	DeleteByUserID(ctx context.Context, userID string) error
 }
+
+// ConversationSummaryRepo manages conversation summaries.
+// This implements the "fourth layer" of ChatGPT's memory system - recent conversation summaries.
+// Key feature: sliding window of 15-20 summaries per user with zero retrieval latency.
+type ConversationSummaryRepo interface {
+	// Create stores a new conversation summary.
+	Create(ctx context.Context, summary *domain.ConversationSummary) error
+
+	// GetByID retrieves a summary by its ID.
+	GetByID(ctx context.Context, summaryID string) (*domain.ConversationSummary, error)
+
+	// GetByUserID retrieves all summaries for a user, ordered by created_at desc.
+	GetByUserID(ctx context.Context, userID string, limit int) ([]domain.ConversationSummary, error)
+
+	// GetBySessionID retrieves a summary by session ID.
+	GetBySessionID(ctx context.Context, sessionID string) (*domain.ConversationSummary, error)
+
+	// List retrieves summaries with filtering and pagination.
+	List(ctx context.Context, f domain.ConversationSummaryFilter) (summaries []domain.ConversationSummary, total int, err error)
+
+	// Delete removes a summary by ID.
+	Delete(ctx context.Context, summaryID string) error
+
+	// DeleteOldest removes the oldest summaries for a user to maintain the sliding window.
+	// Returns the number of summaries deleted.
+	DeleteOldest(ctx context.Context, userID string, count int) (int64, error)
+
+	// CountByUserID returns the total number of summaries for a user.
+	CountByUserID(ctx context.Context, userID string) (int, error)
+}
