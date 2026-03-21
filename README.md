@@ -98,6 +98,87 @@ A key design principle: **agent plugins carry zero state.** All memory lives in 
 - **Multi-agent collaboration** — Claude Code, OpenCode, OpenClaw, and any HTTP client share memories when pointed at the same server
 - **Centralized control** — rate limits and audit live in one place
 
+## 🧠 Auto Memory (Project-Level)
+
+**NEW in memorix**: Automatic accumulation of project-specific experiences!
+
+In addition to cloud-persistent memory via memorix-server, memorix now includes **Auto Memory** — a project-level memory system that automatically accumulates build commands, error solutions, architecture decisions, and user preferences.
+
+### How It Works
+
+```
+Session Start → Load first 200 lines of MEMORY.md
+     ↓
+Agent Works → Detects valuable experiences:
+  • Build/test commands (success)
+  • Errors resolved
+  • Architecture decisions
+  • User preferences
+     ↓
+Session End → Auto-update MEMORY.md
+```
+
+### MEMORY.md
+
+A Git-tracked Markdown file in your project root:
+
+```markdown
+# Project Auto Memory
+
+## 📦 Build Commands
+- Command: `make build` — Builds Go server
+- Command: `make test` — Runs unit tests
+
+## 🐛 Error Solutions
+- Error: "module not found"
+  Solution: Run `go mod tidy`
+
+## 🏗️ Architecture Decisions
+- Decision: Use chi router
+  Rationale: Lightweight, composable
+  Date: 2026-03-21
+
+## ⚙️ User Preferences
+- Preference: Always run tests before commit
+```
+
+### Features
+
+✅ **Automatic accumulation** — No manual intervention needed
+✅ **Deduplication** — Same command/error recorded only once
+✅ **Team collaboration** — Commit MEMORY.md to share with team
+✅ **Session integration** — First 200 lines loaded every session
+✅ **/memory command** — View, search, and manage memories
+
+### Usage
+
+```bash
+# View all memories
+/memory
+
+# View specific section
+/memory build
+/memory errors
+
+# Search memories
+/memory search "router"
+
+# Edit manually
+/memory edit
+```
+
+### Auto Memory vs memorix-server
+
+| Feature | Auto Memory (MEMORY.md) | memorix-server |
+|---------|-------------------------|----------------|
+| **Scope** | Project-specific | Cross-project |
+| **Storage** | Git-tracked file | Cloud database |
+| **Sharing** | Team via Git | Personal/team via API |
+| **Content** | Build commands, errors, decisions | Personal facts, patterns |
+| **Best for** | Team collaboration | Personal preferences |
+
+**Use both**: Auto Memory for project-specific knowledge (shared via Git), memorix-server for personal preferences (cloud-persistent).
+
 ## API Reference
 
 Agent identity: `X-Memorix-Agent-Id` header.
