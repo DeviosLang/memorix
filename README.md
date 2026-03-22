@@ -20,6 +20,8 @@
 
 ## 🚀 Quick Start
 
+> **Want the fastest path?** See the [TiDB Serverless Quickstart](docs/quickstart-tidb.md) — deploy with 4 environment variables, no separate embedding service needed, estimated 15 minutes to a fully working setup.
+
 **Server-based memory via memorix-server.**
 
 ```bash
