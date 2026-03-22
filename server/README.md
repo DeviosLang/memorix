@@ -9,6 +9,8 @@ Go REST API server for memorix — cloud-persistent memory for AI agents.
 
 ## Quick Start
 
+> **Want the fastest path?** See the [TiDB Serverless Quickstart](../docs/quickstart-tidb.md) — deploy with 4 environment variables, no separate embedding service needed, estimated 15 minutes to a fully working setup.
+
 ### 1. Apply the database schema
 
 ```bash
