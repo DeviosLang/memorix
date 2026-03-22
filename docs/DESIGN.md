@@ -1,5 +1,7 @@
 # Memorix — AI Agent Memory, Everywhere
 
+> **Getting started?** See the [TiDB Serverless Quickstart](quickstart-tidb.md) — deploy with 4 environment variables in ~15 minutes.
+
 ## 1. Problem
 
 AI agents each maintain their own local memory files — siloed, local, forgotten between sessions.
