@@ -1,0 +1,75 @@
+# CRUD Baseline Performance Test
+#
+# Tests baseline CRUD operations with increasing concurrency levels.
+# Phase 1: Pure write operations (create memories)
+# Phase 2: Pure read operations (get memories by ID)
+# Phase 3: Mixed operations (read/write/update)
+#
+# Usage:
+#   export MNEMO_API_TOKEN="mnemo_..."
+#   python3 benchmark/perf/load_test.py --scenario-file benchmark/perf/scenarios/crud_baseline.yaml --results-dir benchmark/perf/results
+
+name: "crud_baseline"
+description: "Baseline CRUD operations: pure write -> pure read -> mixed operations with increasing concurrency"
+
+# Phase 1: Pure write operations
+# Establishes baseline for memory creation latency
+phases:
+  - name: "pure_write_low_concurrency"
+    description: "Pure write operations at low concurrency"
+    duration_seconds: 20
+    concurrency: 5
+    ramp_up_seconds: 2
+    operations:
+      - type: "create_memory"
+        weight: 100
+        params:
+          content_template: "Memory entry {id} created at {timestamp} for CRUD baseline test"
+          tags: ["baseline", "crud", "write"]
+
+  - name: "pure_write_high_concurrency"
+    description: "Pure write operations at high concurrency"
+    duration_seconds: 20
+    concurrency: 50
+    ramp_up_seconds: 5
+    operations:
+      - type: "create_memory"
+        weight: 100
+        params:
+          content_template: "Memory entry {id} created at {timestamp} for CRUD baseline test"
+          tags: ["baseline", "crud", "write"]
+
+  - name: "pure_read"
+    description: "Pure read operations using previously created IDs"
+    duration_seconds: 20
+    concurrency: 20
+    ramp_up_seconds: 2
+    operations:
+      - type: "get_memory"
+        weight: 100
+        params:
+          id_source: "created_ids"
+
+  - name: "mixed_operations"
+    description: "Mixed CRUD operations: 40% read, 40% write, 20% update"
+    duration_seconds: 30
+    concurrency: 30
+    ramp_up_seconds: 3
+    operations:
+      - type: "get_memory"
+        weight: 40
+        params:
+          id_source: "created_ids"
+
+      - type: "create_memory"
+        weight: 40
+        params:
+          content_template: "Mixed phase memory {id} at {timestamp}"
+          tags: ["baseline", "crud", "mixed"]
+
+      - type: "update_memory"
+        weight: 20
+        params:
+          id_source: "created_ids"
+          content_template: "Updated memory {id} at {timestamp}"
+          tags: ["baseline", "crud", "updated"]

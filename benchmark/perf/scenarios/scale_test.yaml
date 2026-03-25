@@ -1,0 +1,118 @@
+# Scale Test - Search Latency at Different Dataset Sizes
+#
+# Tests search latency curves with pre-populated datasets of varying sizes:
+# - 1K memories (small)
+# - 10K memories (medium)
+# - 100K memories (large)
+#
+# This helps understand how search performance degrades with scale
+# and identify optimal indexing strategies.
+#
+# Note: 100K memory population may take significant time.
+# Consider running scale tests separately for each size.
+#
+# Usage:
+#   export MNEMO_API_TOKEN="mnemo_..."
+#   python3 benchmark/perf/load_test.py --scenario-file benchmark/perf/scenarios/scale_test.yaml --results-dir benchmark/perf/results
+#
+# For individual scale tests, use the scale_1k.yaml, scale_10k.yaml, scale_100k.yaml files.
+
+name: "scale_test"
+description: "Search latency curves with pre-populated datasets (1K/10K/100K memories)"
+
+# The main test uses 1K for faster execution
+# Use separate scale_Xk.yaml files for larger datasets
+setup:
+  num_memories: 1000
+  content_template: "Scale test memory {id}: User interaction about {random} topic. Details include preferences, settings, and context from conversation at {timestamp}."
+  tags: ["scale-test", "user-interaction"]
+  batch_size: 100
+
+phases:
+  # Phase 1: Search at low concurrency
+  - name: "search_low_concurrency"
+    description: "Search with 10 concurrent workers"
+    duration_seconds: 30
+    concurrency: 10
+    ramp_up_seconds: 2
+    operations:
+      - type: "search_memory"
+        weight: 60
+        params:
+          query: "user preferences"
+          k: 10
+
+      - type: "search_hybrid"
+        weight: 40
+        params:
+          query: "conversation context"
+          k: 10
+
+  # Phase 2: Search at medium concurrency
+  - name: "search_medium_concurrency"
+    description: "Search with 30 concurrent workers"
+    duration_seconds: 30
+    concurrency: 30
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_memory"
+        weight: 60
+        params:
+          query: "settings and configuration"
+          k: 15
+
+      - type: "search_hybrid"
+        weight: 40
+        params:
+          query: "recent interactions"
+          k: 15
+
+  # Phase 3: Search at high concurrency
+  - name: "search_high_concurrency"
+    description: "Search with 50 concurrent workers"
+    duration_seconds: 30
+    concurrency: 50
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "user history"
+          k: 20
+
+      - type: "search_hybrid"
+        weight: 50
+        params:
+          query: "context and preferences"
+          k: 20
+
+  # Phase 4: Mixed operations at scale
+  - name: "mixed_operations_at_scale"
+    description: "Mixed operations with 30 concurrent workers"
+    duration_seconds: 30
+    concurrency: 30
+    ramp_up_seconds: 3
+    operations:
+      - type: "search_memory"
+        weight: 40
+        params:
+          query: "relevant information"
+          k: 10
+
+      - type: "get_memory"
+        weight: 30
+        params:
+          id_source: "created_ids"
+
+      - type: "create_memory"
+        weight: 20
+        params:
+          content_template: "New memory added during scale test {id} at {timestamp}"
+          tags: ["scale-test", "new"]
+
+      - type: "update_memory"
+        weight: 10
+        params:
+          id_source: "created_ids"
+          content_template: "Updated at {timestamp}"
+          tags: ["scale-test", "updated"]
