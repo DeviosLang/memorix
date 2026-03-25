@@ -168,6 +168,10 @@ func (c *Client) complete(ctx context.Context, system, user string, respFmt *res
 }
 
 func StripMarkdownFences(s string) string {
+	// Strip <think>...</think> blocks emitted by reasoning models (e.g. MiniMax-M2.7, DeepSeek-R1).
+	thinkRe := regexp.MustCompile(`(?s)<think>.*?</think>`)
+	s = thinkRe.ReplaceAllString(s, "")
+
 	re := regexp.MustCompile("(?s)^\\s*```(?:json)?\\s*\n?(.*?)\\s*```\\s*$")
 	if match := re.FindStringSubmatch(s); len(match) > 1 {
 		return strings.TrimSpace(match[1])

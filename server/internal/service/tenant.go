@@ -29,12 +29,18 @@ const tenantMemorySchemaBase = `CREATE TABLE IF NOT EXISTS memories (
 	    superseded_by   VARCHAR(36)     NULL,
 	    created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
 	    updated_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	    confidence       DECIMAL(3,2)   NOT NULL DEFAULT 1.0,
+	    access_count     INT            NOT NULL DEFAULT 0,
+	    last_accessed_at TIMESTAMP      NULL,
+	    importance_score DECIMAL(5,4)   NULL,
 	    INDEX idx_memory_type         (memory_type),
 	    INDEX idx_source              (source),
 	    INDEX idx_state               (state),
 	    INDEX idx_agent               (agent_id),
 	    INDEX idx_session             (session_id),
-	    INDEX idx_updated             (updated_at)
+	    INDEX idx_updated             (updated_at),
+	    INDEX idx_gc_stale            (state, last_accessed_at),
+	    INDEX idx_gc_importance       (importance_score)
 	)`
 
 const tenantUserProfileFactsSchema = `CREATE TABLE IF NOT EXISTS user_profile_facts (

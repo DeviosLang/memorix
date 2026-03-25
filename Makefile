@@ -29,8 +29,13 @@ run: build
 docker: build-linux
 	docker build --platform=linux/amd64 -q -f ./server/Dockerfile -t $(IMG) .
 
+TIMESTAMP := $(shell date +%Y%m%d%H%M%S)
+REGISTRY_IMG := mirrors.tencent.com/cvm/memorix
+
 docker-build:
-	docker build -t memorix-server ./server
+	docker build -t $(REGISTRY_IMG):latest -t $(REGISTRY_IMG):$(TIMESTAMP) ./server
+	docker push $(REGISTRY_IMG):latest
+	docker push $(REGISTRY_IMG):$(TIMESTAMP)
 
 docker-run: docker-build
 	-docker stop memorix-server 2>/dev/null; docker rm memorix-server 2>/dev/null; true
@@ -44,5 +49,5 @@ docker-run: docker-build
 		$(if $(MNEMO_EMBED_API_KEY),-e MNEMO_EMBED_API_KEY="$(MNEMO_EMBED_API_KEY)") \
 		$(if $(MNEMO_EMBED_BASE_URL),-e MNEMO_EMBED_BASE_URL="$(MNEMO_EMBED_BASE_URL)") \
 		$(if $(MNEMO_EMBED_MODEL),-e MNEMO_EMBED_MODEL="$(MNEMO_EMBED_MODEL)") \
-		memorix-server
+		$(REGISTRY_IMG):latest
 
