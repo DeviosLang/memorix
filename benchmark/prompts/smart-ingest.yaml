@@ -1,0 +1,122 @@
+# Smart Ingest - LLM Fact Extraction Recall Test
+# Tests the ability to extract multiple facts from a single text and recall them individually
+name: smart-ingest-extraction
+description: |
+  Smart ingestion capability test.
+  Tests the system's ability to ingest text containing multiple distinct facts
+  (via LLM fact extraction) and recall each fact individually through targeted queries.
+  Profile A (baseline): stores content as-is, single memory entry
+  Profile B (enhanced): uses LLM to extract facts, multiple memory entries
+
+prompts:
+  # Complex content with multiple embedded facts - tests fact extraction
+  - id: "store-1"
+    type: "store"
+    text: |
+      The memorix server is written in Go and uses the chi router for HTTP handling.
+      It supports two modes: direct mode for connecting directly to TiDB Serverless,
+      and server mode for multi-agent collaboration. The default port is 18081.
+      Vector search is powered by TiDB's native VECTOR type with cosine distance.
+    tags: ["architecture", "server"]
+    expected_facts_count: 4  # Go, chi router, two modes, port 18081, vector search
+
+  - id: "store-2"
+    type: "store"
+    text: |
+      Our CI/CD pipeline runs on GitHub Actions with the following stages:
+      lint and vet checks run first (takes ~2 minutes), unit tests with race detector
+      run in parallel (takes ~5 minutes), and integration tests only run on main branch
+      pushes. Deployments to staging happen automatically after merge, production
+      deployments require manual approval from the release team.
+    tags: ["devops", "ci-cd"]
+    expected_facts_count: 5  # GitHub Actions, lint/vet timing, unit tests, main branch only, deployment flow
+
+  - id: "store-3"
+    type: "store"
+    text: |
+      The OpenClaw plugin architecture supports three kinds of plugins: skills for
+      on-demand tools, hooks for automatic lifecycle events, and memory providers
+      for persistent storage. Memory plugins replace the built-in memory slot and
+      guarantee automatic read/write timing. Skills require agent judgment for when to invoke.
+    tags: ["plugin", "architecture"]
+    expected_facts_count: 4  # three kinds, memory replaces built-in, automatic timing, skills need judgment
+
+  # Queries targeting specific facts from the complex content
+  - id: "query-1"
+    type: "query"
+    text: "What programming language is the memorix server written in?"
+    expected_facts:
+      - "Go"
+
+  - id: "query-2"
+    type: "query"
+    text: "What HTTP router does the server use?"
+    expected_facts:
+      - "chi"
+
+  - id: "query-3"
+    type: "query"
+    text: "What are the two modes supported by memorix?"
+    expected_facts:
+      - "direct mode"
+      - "server mode"
+
+  - id: "query-4"
+    type: "query"
+    text: "What is the default server port?"
+    expected_facts:
+      - "18081"
+
+  - id: "query-5"
+    type: "query"
+    text: "How does vector search work in memorix?"
+    expected_facts:
+      - "VECTOR type"
+      - "cosine distance"
+
+  - id: "query-6"
+    type: "query"
+    text: "What CI platform does the project use?"
+    expected_facts:
+      - "GitHub Actions"
+
+  - id: "query-7"
+    type: "query"
+    text: "How long do lint and vet checks take?"
+    expected_facts:
+      - "2 minutes"
+
+  - id: "query-8"
+    type: "query"
+    text: "When do integration tests run?"
+    expected_facts:
+      - "main branch"
+
+  - id: "query-9"
+    type: "query"
+    text: "Who approves production deployments?"
+    expected_facts:
+      - "release team"
+      - "manual approval"
+
+  - id: "query-10"
+    type: "query"
+    text: "What are the three kinds of OpenClaw plugins?"
+    expected_facts:
+      - "skills"
+      - "hooks"
+      - "memory providers"
+
+  - id: "query-11"
+    type: "query"
+    text: "How do memory plugins differ from skills?"
+    expected_facts:
+      - "automatic timing"
+      - "replace built-in"
+
+  - id: "query-12"
+    type: "query"
+    text: "What limitation do skills have compared to hooks?"
+    expected_facts:
+      - "agent judgment"
+      - "when to invoke"

@@ -1,0 +1,99 @@
+# Hybrid Search - Semantic Similarity with Different Wording
+# Tests the ability to find memories using semantically similar but differently worded queries
+name: hybrid-search-semantic
+description: |
+  Hybrid search capability test.
+  Tests whether the system can find memories using queries that are semantically
+  similar to the stored content but use different wording.
+  This specifically evaluates the benefit of vector search over pure keyword matching.
+  Profile A (baseline): keyword-only search - may miss semantic matches
+  Profile B (enhanced): hybrid search - should catch semantic similarities
+
+prompts:
+  - id: "store-1"
+    type: "store"
+    text: "The application performs automatic garbage collection every 24 hours to clean up expired sessions and stale data"
+    tags: ["maintenance", "gc"]
+
+  - id: "store-2"
+    type: "store"
+    text: "User authentication tokens expire after 7 days of inactivity for security purposes"
+    tags: ["security", "authentication"]
+
+  - id: "store-3"
+    type: "store"
+    text: "The system implements optimistic locking with version numbers to handle concurrent modifications"
+    tags: ["concurrency", "design-pattern"]
+
+  - id: "store-4"
+    type: "store"
+    text: "Database connection pooling is configured with a maximum of 50 connections and a timeout of 30 seconds"
+    tags: ["database", "performance"]
+
+  - id: "store-5"
+    type: "store"
+    text: "Error notifications are sent to the DevOps team via Slack webhook when error rate exceeds 5%"
+    tags: ["monitoring", "alerting"]
+
+  # Semantic queries - different wording from stored content
+  - id: "query-1"
+    type: "query"
+    text: "How often does the system clean up old sessions?"
+    expected_facts:
+      - "24 hours"
+      - "garbage collection"
+    semantic_match: true  # "clean up" vs "garbage collection", "old sessions" vs "expired sessions"
+
+  - id: "query-2"
+    type: "query"
+    text: "What's the validity period for login credentials if not used?"
+    expected_facts:
+      - "7 days"
+      - "tokens expire"
+    semantic_match: true  # "login credentials" vs "authentication tokens", "validity period" vs "expire"
+
+  - id: "query-3"
+    type: "query"
+    text: "How does the application handle race conditions when multiple updates happen at once?"
+    expected_facts:
+      - "optimistic locking"
+      - "version numbers"
+    semantic_match: true  # "race conditions" vs "concurrent modifications", "multiple updates" vs "concurrent"
+
+  - id: "query-4"
+    type: "query"
+    text: "What are the limits for database connections and how long can they wait?"
+    expected_facts:
+      - "50 connections"
+      - "30 seconds"
+    semantic_match: true  # "limits" vs "maximum", "how long can they wait" vs "timeout"
+
+  - id: "query-5"
+    type: "query"
+    text: "When does the engineering team get notified about system failures?"
+    expected_facts:
+      - "error rate exceeds 5%"
+      - "Slack"
+    semantic_match: true  # "engineering team" vs "DevOps team", "system failures" vs "error rate"
+
+  # Exact keyword queries for comparison baseline
+  - id: "query-6"
+    type: "query"
+    text: "garbage collection schedule"
+    expected_facts:
+      - "24 hours"
+    semantic_match: false  # Keyword match - both profiles should succeed
+
+  - id: "query-7"
+    type: "query"
+    text: "authentication tokens expiration"
+    expected_facts:
+      - "7 days"
+    semantic_match: false  # Keyword match
+
+  - id: "query-8"
+    type: "query"
+    text: "optimistic locking version"
+    expected_facts:
+      - "concurrent modifications"
+    semantic_match: false  # Keyword match
