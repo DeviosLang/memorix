@@ -1,6 +1,15 @@
 import { Link } from "@tanstack/react-router";
+import { useSessionTimeout } from "@/lib/session";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { clearSession } from "@/api/client";
 
 export function DashboardPage() {
+  // Set up session timeout (auto-logout after 30 min inactivity)
+  useSessionTimeout();
+
+  const handleLogout = () => {
+    clearSession();
+  };
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -34,6 +43,7 @@ export function DashboardPage() {
         <div className="border-t border-border p-2">
           <Link
             to="/"
+            onClick={handleLogout}
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           >
             <svg
@@ -59,11 +69,14 @@ export function DashboardPage() {
       <main className="flex-1">
         <header className="flex h-16 items-center justify-between border-b border-border px-6">
           <h1 className="text-xl font-semibold">Overview</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">System Status:</span>
-            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
-              Healthy
-            </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">System Status:</span>
+              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
+                Healthy
+              </span>
+            </div>
+            <ThemeToggle />
           </div>
         </header>
         <div className="p-6">
