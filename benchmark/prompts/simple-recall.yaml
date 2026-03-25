@@ -1,0 +1,68 @@
+# Simple Recall - Basic Memory Storage and Recall Test
+# Tests fundamental memory store and query operations
+name: simple-recall-smoke
+description: |
+  Basic memory storage and recall test.
+  Tests the fundamental ability to store information and retrieve it through queries.
+  Profile A (baseline): keyword-only search
+  Profile B (enhanced): hybrid search (vector + keyword)
+
+prompts:
+  - id: "store-1"
+    type: "store"
+    text: "Remember that the project database uses TiDB Serverless, and the connection port is 4000"
+    tags: ["database", "infrastructure"]
+
+  - id: "store-2"
+    type: "store"
+    text: "Remember that the deployment uses Kubernetes (K8s), the namespace is memorix-prod, and there are 3 replicas"
+    tags: ["deployment", "infrastructure"]
+
+  - id: "store-3"
+    type: "store"
+    text: "Remember that the team's code review rule requires at least 2 approvals for all PRs"
+    tags: ["team", "process"]
+
+  - id: "store-4"
+    type: "store"
+    text: "Remember that the API rate limit is set to 100 requests per minute per IP address"
+    tags: ["api", "configuration"]
+
+  - id: "store-5"
+    type: "store"
+    text: "Remember that the monitoring dashboard is accessible at https://grafana.memorix.io and uses Prometheus for metrics collection"
+    tags: ["monitoring", "infrastructure"]
+
+  - id: "query-1"
+    type: "query"
+    text: "What database does the project use and what is the port?"
+    expected_facts:
+      - "TiDB"
+      - "4000"
+
+  - id: "query-2"
+    type: "query"
+    text: "What is the deployment namespace and replica count?"
+    expected_facts:
+      - "memorix-prod"
+      - "3 replicas"
+
+  - id: "query-3"
+    type: "query"
+    text: "How many approvals are needed for code review?"
+    expected_facts:
+      - "2 approvals"
+
+  - id: "query-4"
+    type: "query"
+    text: "What is the API rate limit configuration?"
+    expected_facts:
+      - "100 requests"
+      - "per minute"
+
+  - id: "query-5"
+    type: "query"
+    text: "Where is the monitoring dashboard and what metrics system does it use?"
+    expected_facts:
+      - "grafana.memorix.io"
+      - "Prometheus"

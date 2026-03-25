@@ -6,6 +6,15 @@ This directory contains benchmark helpers and datasets for evaluating memorix me
 
 The benchmark framework runs A/B tests comparing different memory configurations to evaluate recall quality, performance, and correctness. It is designed to test memorix's core memory operations through scripted scenarios.
 
+### Test Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| `simple-recall` | Basic memory storage and recall test |
+| `hybrid-search` | Semantic similarity search (different wording) |
+| `smart-ingest` | LLM fact extraction recall test |
+| `example` | Simple example scenario |
+
 ## Prerequisites
 
 - **memorix-server** running (default `http://127.0.0.1:18081`, override with `MNEMO_API_URL`)
