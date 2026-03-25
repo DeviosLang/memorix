@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,16 @@ type MetricsCollector struct {
 	// Agent tracking (active in last 24h)
 	activeAgents map[string]time.Time // agentID -> last seen time
 
+	// Agent type tracking
+	agentTypes map[string]domain.AgentType // agentID -> type
+
+	// Agent tenant mapping
+	agentTenants map[string]string // agentID -> tenantID
+
+	// Activity metrics for timeline (capped at ~7 days of activity)
+	activityMetrics []domain.ActivityMetric
+	maxActivities   int
+
 	logger *slog.Logger
 }
 
@@ -55,6 +66,10 @@ func NewMetricsCollector(logger *slog.Logger) *MetricsCollector {
 		maxConflicts:        1000,
 		tenantRequestCounts: make(map[string]int64),
 		activeAgents:        make(map[string]time.Time),
+		agentTypes:          make(map[string]domain.AgentType),
+		agentTenants:        make(map[string]string),
+		activityMetrics:     make([]domain.ActivityMetric, 0, 50000),
+		maxActivities:       50000,
 		logger:              logger,
 	}
 }
@@ -75,12 +90,60 @@ func (m *MetricsCollector) RecordRequest(metric domain.RequestMetric) {
 	// Track active agents
 	if metric.AgentID != "" {
 		m.activeAgents[metric.AgentID] = time.Now()
+
+		// Track agent tenant mapping
+		if metric.TenantID != "" {
+			m.agentTenants[metric.AgentID] = metric.TenantID
+		}
+
+		// Infer agent type from agent ID pattern
+		agentType := inferAgentType(metric.AgentID)
+		m.agentTypes[metric.AgentID] = agentType
 	}
 
 	// Trim if exceeds max
 	if len(m.requestMetrics) > m.maxRequests {
 		m.requestMetrics = m.requestMetrics[len(m.requestMetrics)-m.maxRequests:]
 	}
+}
+
+// RecordActivity records an agent activity event.
+func (m *MetricsCollector) RecordActivity(metric domain.ActivityMetric) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.activityMetrics = append(m.activityMetrics, metric)
+
+	// Track agent tenant mapping
+	if metric.TenantID != "" && metric.AgentID != "" {
+		m.agentTenants[metric.AgentID] = metric.TenantID
+	}
+
+	// Trim if exceeds max
+	if len(m.activityMetrics) > m.maxActivities {
+		m.activityMetrics = m.activityMetrics[len(m.activityMetrics)-m.maxActivities:]
+	}
+}
+
+// inferAgentType determines the agent type from the agent ID.
+func inferAgentType(agentID string) domain.AgentType {
+	// Common patterns:
+	// Claude Code: often uses "claude-code", "claude", or user-defined names
+	// OpenClaw: often uses "openclaw" or similar
+	// OpenCode: often uses "opencode" or similar
+	agentIDLower := strings.ToLower(agentID)
+
+	if strings.Contains(agentIDLower, "claude") {
+		return domain.AgentTypeClaudeCode
+	}
+	if strings.Contains(agentIDLower, "openclaw") {
+		return domain.AgentTypeOpenClaw
+	}
+	if strings.Contains(agentIDLower, "opencode") {
+		return domain.AgentTypeOpenCode
+	}
+
+	return domain.AgentTypeUnknown
 }
 
 // RecordSearch records a search metric.
@@ -365,4 +428,128 @@ func percentile(values []float64, p float64) float64 {
 	// Linear interpolation
 	weight := index - float64(lower)
 	return sorted[lower]*(1-weight) + sorted[upper]*weight
+}
+
+// GetAgentActivity returns agent activity data with 7-day timeline.
+func (m *MetricsCollector) GetAgentActivity() domain.AgentActivityResponse {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	now := time.Now()
+	response := domain.AgentActivityResponse{
+		CollectedAt: now,
+		ByType:      make(map[string]int),
+	}
+
+	// Build activity timeline for each agent
+	agentData := make(map[string]*agentActivityBuilder)
+
+	// Process activity metrics from the last 7 days
+	cutoff := now.Add(-7 * 24 * time.Hour)
+	for _, activity := range m.activityMetrics {
+		if activity.Timestamp.Before(cutoff) {
+			continue
+		}
+
+		if _, exists := agentData[activity.AgentID]; !exists {
+			agentData[activity.AgentID] = &agentActivityBuilder{
+				writesByDate: make(map[string]int),
+				readsByDate:  make(map[string]int),
+			}
+		}
+
+		dateKey := activity.Timestamp.Format("2006-01-02")
+		if activity.Operation == "write" {
+			agentData[activity.AgentID].writesByDate[dateKey]++
+		} else if activity.Operation == "read" {
+			agentData[activity.AgentID].readsByDate[dateKey]++
+		}
+	}
+
+	// Build final agent list
+	for agentID, data := range agentData {
+		agentType := m.agentTypes[agentID]
+		if agentType == "" {
+			agentType = domain.AgentTypeUnknown
+		}
+
+		tenantID := m.agentTenants[agentID]
+		lastActive, exists := m.activeAgents[agentID]
+
+		activity := domain.AgentActivity{
+			AgentID:      agentID,
+			AgentType:    string(agentType),
+			TenantID:     tenantID,
+			LastActiveAt: lastActive,
+			Timeline:     data.buildTimeline(now),
+		}
+
+		if exists {
+			response.Agents = append(response.Agents, activity)
+			response.ByType[string(agentType)]++
+		}
+	}
+
+	response.TotalAgents = len(response.Agents)
+	return response
+}
+
+// agentActivityBuilder helps build activity timeline for an agent.
+type agentActivityBuilder struct {
+	writesByDate map[string]int
+	readsByDate  map[string]int
+}
+
+func (b *agentActivityBuilder) buildTimeline(now time.Time) []domain.ActivityDataPoint {
+	timeline := make([]domain.ActivityDataPoint, 7)
+
+	for i := 0; i < 7; i++ {
+		date := now.AddDate(0, 0, -i)
+		dateKey := date.Format("2006-01-02")
+
+		timeline[6-i] = domain.ActivityDataPoint{
+			Date:     dateKey,
+			Writes:   b.writesByDate[dateKey],
+			Reads:    b.readsByDate[dateKey],
+			TotalOps: b.writesByDate[dateKey] + b.readsByDate[dateKey],
+		}
+	}
+
+	return timeline
+}
+
+// GetAgentTypes returns the mapping of agent IDs to their types.
+func (m *MetricsCollector) GetAgentTypes() map[string]domain.AgentType {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make(map[string]domain.AgentType, len(m.agentTypes))
+	for k, v := range m.agentTypes {
+		result[k] = v
+	}
+	return result
+}
+
+// GetAgentTenants returns the mapping of agent IDs to their tenant IDs.
+func (m *MetricsCollector) GetAgentTenants() map[string]string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make(map[string]string, len(m.agentTenants))
+	for k, v := range m.agentTenants {
+		result[k] = v
+	}
+	return result
+}
+
+// GetAgentLastSeen returns the last seen time for each agent.
+func (m *MetricsCollector) GetAgentLastSeen() map[string]time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make(map[string]time.Time, len(m.activeAgents))
+	for k, v := range m.activeAgents {
+		result[k] = v
+	}
+	return result
 }

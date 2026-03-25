@@ -5,6 +5,10 @@ import type {
   DashboardGCStats,
   DashboardSpaceStats,
   DashboardConflictStats,
+  SpaceListResponse,
+  SpaceListItem,
+  AgentActivityResponse,
+  StorageAnalysisResponse,
 } from "@/types/metrics";
 
 const DASHBOARD_TOKEN_KEY = "dashboard-token";
@@ -69,6 +73,11 @@ export const api = {
   getGCStats: () => fetchAPI<DashboardGCStats>("/gc-stats"),
   getSpaceStats: () => fetchAPI<DashboardSpaceStats>("/space-stats"),
   getConflictStats: () => fetchAPI<DashboardConflictStats>("/conflict-stats"),
+  // New endpoints for space and agent management
+  getSpaces: () => fetchAPI<SpaceListResponse>("/spaces"),
+  getSpaceDetail: (tenantId: string) => fetchAPI<SpaceListItem>(`/spaces/${tenantId}`),
+  getAgentActivity: () => fetchAPI<AgentActivityResponse>("/agents"),
+  getStorageAnalysis: () => fetchAPI<StorageAnalysisResponse>("/storage"),
 };
 
 export function clearDashboardToken(): void {
