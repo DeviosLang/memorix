@@ -1,0 +1,53 @@
+# Scale Test - 1K Memories
+#
+# Search latency test with 1,000 pre-populated memories.
+#
+# Usage:
+#   export MNEMO_API_TOKEN="mnemo_..."
+#   python3 benchmark/perf/load_test.py --scenario-file benchmark/perf/scenarios/scale_1k.yaml --results-dir benchmark/perf/results
+
+name: "scale_1k"
+description: "Search latency with 1,000 pre-populated memories"
+
+setup:
+  num_memories: 1000
+  content_template: "Memory {id}: User discussed {random} topic at {timestamp}. Key points include preferences, settings, and context."
+  tags: ["scale-test", "1k"]
+  batch_size: 100
+
+phases:
+  - name: "baseline_search"
+    description: "Baseline search performance at 1K scale"
+    duration_seconds: 60
+    concurrency: 20
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "user preferences"
+          k: 10
+
+      - type: "search_hybrid"
+        weight: 50
+        params:
+          query: "conversation history"
+          k: 10
+
+  - name: "high_concurrency"
+    description: "High concurrency search at 1K scale"
+    duration_seconds: 60
+    concurrency: 100
+    ramp_up_seconds: 10
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "settings"
+          k: 20
+
+      - type: "search_hybrid"
+        weight: 50
+        params:
+          query: "context"
+          k: 20

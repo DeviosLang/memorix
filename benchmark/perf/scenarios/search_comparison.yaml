@@ -1,0 +1,93 @@
+# Search Comparison Performance Test
+#
+# Compares keyword search vs hybrid search (keyword + semantic) performance
+# on the same dataset. This helps understand the latency trade-off
+# between simple keyword matching and semantic similarity search.
+#
+# The test first populates a baseline dataset, then runs identical
+# queries using both search methods.
+#
+# Usage:
+#   export MNEMO_API_TOKEN="mnemo_..."
+#   python3 benchmark/perf/load_test.py --scenario-file benchmark/perf/scenarios/search_comparison.yaml --results-dir benchmark/perf/results
+
+name: "search_comparison"
+description: "Compare keyword search vs hybrid search performance on the same dataset"
+
+# Pre-populate dataset with diverse memories
+setup:
+  num_memories: 1000
+  content_template: "Document {id}: This is a technical article about software engineering, machine learning, and data science. Topic: {random}. Created at {timestamp}."
+  tags: ["document", "search-test"]
+  batch_size: 50
+
+phases:
+  # Phase 1: Keyword search baseline
+  - name: "keyword_search_baseline"
+    description: "Keyword-only search performance"
+    duration_seconds: 30
+    concurrency: 10
+    ramp_up_seconds: 3
+    operations:
+      - type: "search_memory"
+        weight: 100
+        params:
+          query: "machine learning algorithms"
+          k: 10
+
+  # Phase 2: Hybrid search comparison
+  - name: "hybrid_search_comparison"
+    description: "Hybrid search (keyword + semantic) performance"
+    duration_seconds: 30
+    concurrency: 10
+    ramp_up_seconds: 3
+    operations:
+      - type: "search_hybrid"
+        weight: 100
+        params:
+          query: "machine learning algorithms"
+          k: 10
+
+  # Phase 3: Side-by-side at higher concurrency
+  - name: "keyword_high_concurrency"
+    description: "Keyword search at higher concurrency"
+    duration_seconds: 20
+    concurrency: 50
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_memory"
+        weight: 100
+        params:
+          query: "software engineering best practices"
+          k: 20
+
+  - name: "hybrid_high_concurrency"
+    description: "Hybrid search at higher concurrency"
+    duration_seconds: 20
+    concurrency: 50
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_hybrid"
+        weight: 100
+        params:
+          query: "software engineering best practices"
+          k: 20
+
+  # Phase 5: Mixed search operations (realistic workload)
+  - name: "mixed_search_workload"
+    description: "Mixed search workload: 70% keyword, 30% hybrid"
+    duration_seconds: 30
+    concurrency: 30
+    ramp_up_seconds: 3
+    operations:
+      - type: "search_memory"
+        weight: 70
+        params:
+          query: "data science methods"
+          k: 15
+
+      - type: "search_hybrid"
+        weight: 30
+        params:
+          query: "data science methods"
+          k: 15

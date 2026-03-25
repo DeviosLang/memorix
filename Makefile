@@ -1,7 +1,7 @@
 MAKEFILE_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 IMG ?= $(REGISTRY)/memorix-server:$(COMMIT)
 
-.PHONY: build build-linux vet clean run test test-integration docker docker-build docker-run bench bench-report bench-clean
+.PHONY: build build-linux vet clean run test test-integration docker docker-build docker-run bench bench-report bench-clean bench-perf bench-perf-report bench-perf-clean
 
 build:
 	mkdir -p $(MAKEFILE_DIR)/./bin
@@ -75,4 +75,46 @@ bench-clean:
 	@mkdir -p $(MAKEFILE_DIR)/benchmark/results
 	@touch $(MAKEFILE_DIR)/benchmark/results/.gitkeep
 	@echo "Benchmark results cleaned."
+
+# Performance benchmark targets
+bench-perf:
+ifndef MNEMO_API_TOKEN
+	$(error MNEMO_API_TOKEN is required. export MNEMO_API_TOKEN='mnemo_...')
+endif
+	@scenario=$${BENCH_PERF_SCENARIO:-crud_baseline}; \
+	duration=$${BENCH_PERF_DURATION:-60}; \
+	concurrency=$${BENCH_PERF_CONCURRENCY:-10}; \
+	ramp_up=$${BENCH_PERF_RAMP_UP:-0}; \
+	api_url=$${MNEMO_API_URL:-http://127.0.0.1:18081}; \
+	results_dir=$(MAKEFILE_DIR)/benchmark/perf/results; \
+	scenario_file=$(MAKEFILE_DIR)/benchmark/perf/scenarios/$${scenario}.yaml; \
+	if [ ! -f "$$scenario_file" ]; then \
+		echo "ERROR: Scenario file not found: $$scenario_file"; \
+		exit 1; \
+	fi; \
+	echo "Running performance benchmark: $$scenario"; \
+	echo "  Duration: $${duration}s | Concurrency: $${concurrency} | Ramp-up: $${ramp_up}s"; \
+	python3 $(MAKEFILE_DIR)/benchmark/perf/load_test.py \
+		--api-url "$$api_url" \
+		--api-token "$${MNEMO_API_TOKEN}" \
+		--scenario-file "$$scenario_file" \
+		--results-dir "$$results_dir" \
+		--duration $$duration \
+		--concurrency $$concurrency \
+		--ramp-up $$ramp_up
+
+bench-perf-report:
+	@latest=$$(ls -td $(MAKEFILE_DIR)/benchmark/perf/results/perf-*.json 2>/dev/null | head -1); \
+	if [ -z "$$latest" ]; then \
+		echo "ERROR: No performance benchmark results found."; \
+		exit 1; \
+	fi; \
+	echo "Latest performance results: $$latest"; \
+	cat "$$latest"
+
+bench-perf-clean:
+	rm -rf $(MAKEFILE_DIR)/benchmark/perf/results/*
+	@mkdir -p $(MAKEFILE_DIR)/benchmark/perf/results
+	@touch $(MAKEFILE_DIR)/benchmark/perf/results/.gitkeep
+	@echo "Performance benchmark results cleaned."
 

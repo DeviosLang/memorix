@@ -1,0 +1,123 @@
+# Mixed Workload Performance Test
+#
+# Simulates real agent usage patterns with:
+# - Frequent search operations (50%)
+# - Intermittent write operations (30%)
+# - Periodic update operations (20%)
+#
+# This represents a typical AI agent interacting with memory:
+# - Searching for relevant context (most common)
+# - Ingesting new information (periodic)
+# - Updating existing memories (occasional)
+#
+# Usage:
+#   export MNEMO_API_TOKEN="mnemo_..."
+#   python3 benchmark/perf/load_test.py --scenario-file benchmark/perf/scenarios/mixed_workload.yaml --results-dir benchmark/perf/results
+
+name: "mixed_workload"
+description: "Mixed workload simulating real agent usage: 50% query, 30% write, 20% update"
+
+# Phase 1: Light load (typical single-user session)
+phases:
+  - name: "light_load"
+    description: "Light load: 1-2 concurrent agents"
+    duration_seconds: 30
+    concurrency: 5
+    ramp_up_seconds: 3
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "user preferences and settings"
+          k: 10
+
+      - type: "create_memory"
+        weight: 30
+        params:
+          content_template: "Agent learned that user prefers {random} configuration at {timestamp}"
+          tags: ["agent", "preference", "light"]
+
+      - type: "update_memory"
+        weight: 20
+        params:
+          id_source: "created_ids"
+          content_template: "Updated preference for user: {random} at {timestamp}"
+          tags: ["agent", "preference", "updated"]
+
+  # Phase 2: Moderate load (multi-user or high-activity session)
+  - name: "moderate_load"
+    description: "Moderate load: 10-20 concurrent agents"
+    duration_seconds: 45
+    concurrency: 20
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "recent conversations and context"
+          k: 20
+
+      - type: "create_memory"
+        weight: 30
+        params:
+          content_template: "New context entry {id} captured from conversation at {timestamp}"
+          tags: ["agent", "context", "moderate"]
+
+      - type: "update_memory"
+        weight: 20
+        params:
+          id_source: "created_ids"
+          content_template: "Context updated with new information at {timestamp}"
+          tags: ["agent", "context", "updated"]
+
+  # Phase 3: Heavy load (production-level traffic)
+  - name: "heavy_load"
+    description: "Heavy load: 50+ concurrent agents"
+    duration_seconds: 60
+    concurrency: 50
+    ramp_up_seconds: 10
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "user information and historical data"
+          k: 15
+
+      - type: "create_memory"
+        weight: 30
+        params:
+          content_template: "Heavy traffic memory entry {id} created at {timestamp}"
+          tags: ["agent", "heavy", "production"]
+
+      - type: "update_memory"
+        weight: 20
+        params:
+          id_source: "created_ids"
+          content_template: "Production memory updated at {timestamp}"
+          tags: ["agent", "heavy", "updated"]
+
+  # Phase 4: Stress test (peak traffic simulation)
+  - name: "stress_test"
+    description: "Stress test: 100 concurrent agents"
+    duration_seconds: 30
+    concurrency: 100
+    ramp_up_seconds: 5
+    operations:
+      - type: "search_memory"
+        weight: 50
+        params:
+          query: "critical information"
+          k: 10
+
+      - type: "create_memory"
+        weight: 30
+        params:
+          content_template: "Stress test memory {id} at {timestamp}"
+          tags: ["agent", "stress"]
+
+      - type: "update_memory"
+        weight: 20
+        params:
+          id_source: "created_ids"
+          content_template: "Stress update at {timestamp}"
+          tags: ["agent", "stress", "updated"]
