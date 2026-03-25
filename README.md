@@ -21,6 +21,8 @@
 ## 🚀 Quick Start
 
 > **Want the fastest path?** See the [TiDB Serverless Quickstart](docs/quickstart-tidb.md) — deploy with 4 environment variables, no separate embedding service needed, estimated 15 minutes to a fully working setup.
+>
+> **Deploying to Kubernetes?** See the [K8s Deployment Guide](docs/deployment-k8s.md) — includes Deployment, Service, Ingress, HPA, and ready-to-use manifests in `deploy/k8s/`.
 
 **Server-based memory via memorix-server.**
 

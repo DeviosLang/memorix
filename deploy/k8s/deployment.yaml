@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memorix-server
+  namespace: memorix
+  labels:
+    app: memorix-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: memorix-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: memorix-server
+    spec:
+      containers:
+        - name: memorix-server
+          # Replace with your actual image
+          image: your-registry.example.com/memorix-server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+
+          # Non-sensitive config from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: memorix-config
+
+          # Sensitive config from Secret
+          env:
+            - name: MNEMO_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: memorix-secrets
+                  key: MNEMO_DSN
+            - name: MNEMO_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: memorix-secrets
+                  key: MNEMO_LLM_API_KEY
+            - name: MNEMO_LLM_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: memorix-secrets
+                  key: MNEMO_LLM_BASE_URL
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          volumeMounts:
+            - name: upload-data
+              mountPath: /data/uploads
+
+      volumes:
+        - name: upload-data
+          persistentVolumeClaim:
+            claimName: memorix-uploads-pvc
+
+      # Uncomment if using a private registry
+      # imagePullSecrets:
+      #   - name: registry-credentials

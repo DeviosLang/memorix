@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memorix-config
+  namespace: memorix
+data:
+  MNEMO_PORT: "8080"
+  MNEMO_LLM_MODEL: "gpt-4o-mini"
+  MNEMO_LLM_TEMPERATURE: "0.1"
+  MNEMO_INGEST_MODE: "smart"
+  MNEMO_EMBED_AUTO_MODEL: "tidbcloud_free/amazon/titan-embed-text-v2"
+  MNEMO_EMBED_AUTO_DIMS: "1024"
+  MNEMO_FTS_ENABLED: "false"
+  MNEMO_GC_ENABLED: "true"
+  MNEMO_GC_INTERVAL: "24h"
+  MNEMO_GC_MAX_MEMORIES_PER_TENANT: "10000"
+  MNEMO_MAX_CONTEXT_TOKENS: "8192"
+  MNEMO_RATE_LIMIT: "100"
+  MNEMO_RATE_BURST: "200"
+  MNEMO_TIDB_ZERO_ENABLED: "true"
+  MNEMO_UPLOAD_DIR: "/data/uploads"
+  MNEMO_WORKER_CONCURRENCY: "5"
+  TZ: "Asia/Shanghai"
