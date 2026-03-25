@@ -1,0 +1,13 @@
+# This directory contains benchmark prompt files
+# Each file should be a YAML file with the following structure:
+#
+# name: "scenario-name"
+# description: "Human-readable description"
+# prompts:
+#   - "First prompt text"
+#   - "Second prompt text"
+#
+# Example files:
+# - example.yaml       # Basic example scenario
+# - recall-test.yaml   # Memory recall tests
+# - concurrent.yaml    # Concurrent access tests

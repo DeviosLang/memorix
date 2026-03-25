@@ -1,7 +1,7 @@
 MAKEFILE_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 IMG ?= $(REGISTRY)/memorix-server:$(COMMIT)
 
-.PHONY: build build-linux vet clean run test test-integration docker docker-build docker-run
+.PHONY: build build-linux vet clean run test test-integration docker docker-build docker-run bench bench-report bench-clean
 
 build:
 	mkdir -p $(MAKEFILE_DIR)/./bin
@@ -50,4 +50,29 @@ docker-run: docker-build
 		$(if $(MNEMO_EMBED_BASE_URL),-e MNEMO_EMBED_BASE_URL="$(MNEMO_EMBED_BASE_URL)") \
 		$(if $(MNEMO_EMBED_MODEL),-e MNEMO_EMBED_MODEL="$(MNEMO_EMBED_MODEL)") \
 		$(REGISTRY_IMG):latest
+
+# Benchmark targets
+bench:
+ifndef MNEMO_API_TOKEN
+	$(error MNEMO_API_TOKEN is required. export MNEMO_API_TOKEN='mnemo_...')
+endif
+ifndef BENCH_PROMPT_FILE
+	$(error BENCH_PROMPT_FILE is required. export BENCH_PROMPT_FILE='benchmark/prompts/example.yaml')
+endif
+	bash $(MAKEFILE_DIR)/benchmark/scripts/benchmark.sh
+
+bench-report:
+	@latest=$$(ls -td $(MAKEFILE_DIR)/benchmark/results/*/ 2>/dev/null | head -1); \
+	if [ -z "$$latest" ]; then \
+		echo "ERROR: No benchmark results found."; \
+		exit 1; \
+	fi; \
+	python3 $(MAKEFILE_DIR)/benchmark/scripts/report.py "$$latest/benchmark-results.json" > "$$latest/report.html"; \
+	echo "Report written to $$latest/report.html"
+
+bench-clean:
+	rm -rf $(MAKEFILE_DIR)/benchmark/results/*
+	@mkdir -p $(MAKEFILE_DIR)/benchmark/results
+	@touch $(MAKEFILE_DIR)/benchmark/results/.gitkeep
+	@echo "Benchmark results cleaned."
 
