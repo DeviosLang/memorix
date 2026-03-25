@@ -97,6 +97,9 @@ func main() {
 	defer rl.Stop()
 	rateMW := rl.Middleware()
 
+	// Metrics collector.
+	metricsCollector := service.NewMetricsCollector(logger)
+
 	// Handler.
 	gcConfig := domain.GCConfig{
 		Enabled:                 cfg.GCEnabled,
@@ -145,6 +148,9 @@ func main() {
 		gcConfig,
 		rulesConfig,
 		rulesInjectionConfig,
+		metricsCollector,
+		cfg.DashboardToken,
+		tenantRepo,
 	)
 	router := srv.Router(tenantMW, rateMW)
 

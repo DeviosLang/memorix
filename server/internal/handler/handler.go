@@ -58,6 +58,11 @@ type Server struct {
 	// Rules system
 	rulesLoader  *service.RulesLoader
 	rulesInjector *service.RulesInjector
+
+	// Metrics and Dashboard
+	metrics        *service.MetricsCollector
+	dashboardToken string
+	tenantRepo     repository.TenantRepo
 }
 
 // NewServer creates a new HTTP handler server.
@@ -85,6 +90,9 @@ func NewServer(
 	gcConfig domain.GCConfig,
 	rulesConfig domain.RulesConfig,
 	rulesInjectionConfig domain.RulesInjectionConfig,
+	metrics *service.MetricsCollector,
+	dashboardToken string,
+	tenantRepo repository.TenantRepo,
 ) *Server {
 	// Create tokenizer based on configuration
 	tok, err := tokenizer.New(tokenizer.Config{
@@ -140,6 +148,9 @@ func NewServer(
 		gcConfig:             gcConfig,
 		rulesLoader:          rulesLoader,
 		rulesInjector:        rulesInjector,
+		metrics:              metrics,
+		dashboardToken:       dashboardToken,
+		tenantRepo:           tenantRepo,
 	}
 }
 
@@ -274,6 +285,11 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 	r.Use(requestLogger(s.logger))
 	r.Use(rateLimitMW)
 
+	// Metrics middleware (if metrics collector is configured)
+	if s.metrics != nil {
+		r.Use(middleware.MetricsMiddleware(s.metrics))
+	}
+
 	// Health check.
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -282,6 +298,12 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 	// Web UI (memory dashboard) - serve static files
 	r.Get("/", s.serveDashboard)
 	r.Get("/dashboard", s.serveDashboard)
+
+	// Dashboard API (admin-only metrics endpoints)
+	if s.dashboardToken != "" && s.metrics != nil {
+		dashboardHandler := NewDashboardHandler(s.metrics, s.tenantRepo, s.dashboardToken)
+		dashboardHandler.RegisterRoutes(r)
+	}
 
 	// Provision a new tenant — no auth, no body.
 	r.Post("/v1alpha1/memorix", s.provisionMemorix)
