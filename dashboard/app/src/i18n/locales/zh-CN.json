@@ -1,0 +1,145 @@
+{
+  "_locale": "zh-CN",
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "connect": "连接",
+    "connecting": "连接中...",
+    "logout": "退出登录",
+    "documentation": "文档",
+    "total": "共"
+  },
+  "login": {
+    "title": "Memorix 控制台",
+    "description": "输入服务器地址和控制台令牌以连接",
+    "serverUrl": "服务器地址",
+    "dashboardToken": "控制台令牌",
+    "tokenPlaceholder": "输入您的控制台令牌",
+    "errors": {
+      "invalidToken": "令牌无效，请检查后重试。",
+      "serverUnreachable": "无法连接服务器，请确认服务器地址正确且服务正在运行。",
+      "networkError": "网络错误，请检查网络连接后重试。"
+    },
+    "footer": "Memorix 控制台 v{{version}}"
+  },
+  "nav": {
+    "overview": "概览",
+    "spaces": "空间",
+    "agents": "代理",
+    "storage": "存储"
+  },
+  "status": {
+    "healthy": "健康",
+    "degraded": "降级",
+    "unhealthy": "异常",
+    "active": "活跃",
+    "inactive": "不活跃",
+    "systemStatus": "系统状态"
+  },
+  "overview": {
+    "title": "概览",
+    "activeTenants": "活跃租户",
+    "activeAgents": "活跃代理",
+    "requestsPerSec": "请求/秒",
+    "errorRate": "错误率",
+    "requestStats": "请求统计",
+    "totalRequests": "总请求数",
+    "avgLatency": "平均延迟",
+    "p50Latency": "P50 延迟",
+    "p95Latency": "P95 延迟",
+    "p99Latency": "P99 延迟",
+    "searchStats": "搜索统计",
+    "vectorSearches": "向量搜索",
+    "keywordSearches": "关键词搜索",
+    "hybridSearches": "混合搜索",
+    "avgSearchLatency": "平均搜索延迟",
+    "successRate": "成功率",
+    "topActiveSpaces": "最活跃空间",
+    "systemInfo": "系统信息",
+    "uptime": "运行时间",
+    "started": "启动时间"
+  },
+  "spaces": {
+    "title": "空间",
+    "loading": "加载空间列表...",
+    "error": "加载空间列表失败",
+    "sortBy": "排序方式：",
+    "memoryCount": "记忆数量",
+    "lastActivity": "最近活动",
+    "table": {
+      "name": "名称",
+      "memories": "记忆数",
+      "agents": "代理数",
+      "lastActive": "最近活跃",
+      "storage": "存储",
+      "status": "状态"
+    },
+    "totalSpaces": "共 {{count}} 个空间",
+    "detail": {
+      "agents": "代理 ({{count}})",
+      "recentMemories": "最近记忆",
+      "noAgents": "该空间暂无代理",
+      "noMemories": "暂无最近记忆",
+      "loading": "加载详情...",
+      "agentId": "ID",
+      "agentType": "类型",
+      "lastActive": "最近活跃",
+      "by": "由 {{agent}} 于 {{date}}"
+    }
+  },
+  "agents": {
+    "title": "代理活动",
+    "loading": "加载代理活动...",
+    "error": "加载代理活动失败",
+    "totalAgents": "代理总数",
+    "groupBy": "分组方式：",
+    "agentType": "代理类型",
+    "space": "空间",
+    "agentsCount": "({{count}} 个代理)",
+    "table": {
+      "agentId": "代理 ID",
+      "space": "空间",
+      "lastActive": "最近活跃",
+      "totalOps": "总操作数 (7天)"
+    },
+    "chart": {
+      "writes": "写入",
+      "reads": "读取"
+    }
+  },
+  "storage": {
+    "title": "存储分析",
+    "loading": "加载存储分析...",
+    "error": "加载存储分析失败",
+    "totalStorage": "总存储",
+    "totalSpaces": "空间总数",
+    "avgPerSpace": "平均每空间",
+    "distribution": "存储分布",
+    "bySpace": "按空间统计",
+    "growthTrend": "存储增长趋势 (30天)",
+    "allSpaces": "所有空间",
+    "table": {
+      "space": "空间",
+      "storage": "存储",
+      "memories": "记忆数",
+      "percentOfTotal": "占比"
+    },
+    "chart": {
+      "storageMB": "存储 (MB)",
+      "memories": "记忆数",
+      "storage": "存储"
+    }
+  },
+  "time": {
+    "justNow": "刚刚",
+    "minutesAgo": "{{n}}分钟前",
+    "hoursAgo": "{{n}}小时前",
+    "daysAgo": "{{n}}天前",
+    "never": "从未",
+    "yesterday": "昨天"
+  },
+  "language": {
+    "en": "EN",
+    "zhCN": "中文"
+  }
+}

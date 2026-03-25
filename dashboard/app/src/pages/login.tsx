@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LocaleToggle } from "@/components/locale-toggle";
 import { setServerUrl, setDashboardToken, verifyCredentials, clearSession } from "@/api/client";
 import { initTheme } from "@/lib/theme";
 import { Server, Key, AlertCircle, Loader2 } from "lucide-react";
@@ -14,6 +16,7 @@ const DOCS_URL = "https://github.com/DeviosLang/memorix#readme";
 type ErrorType = "invalid_token" | "server_unreachable" | "network_error" | null;
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const [serverUrl, setServerUrlInput] = useState(DEFAULT_SERVER_URL);
   const [token, setToken] = useState("");
   const [error, setError] = useState<ErrorType>(null);
@@ -30,11 +33,11 @@ export function LoginPage() {
   const getErrorMessage = (errorType: ErrorType): string => {
     switch (errorType) {
       case "invalid_token":
-        return "Invalid dashboard token. Please check your token and try again.";
+        return t("login.errors.invalidToken");
       case "server_unreachable":
-        return "Unable to connect to server. Please verify the server URL is correct and the server is running.";
+        return t("login.errors.serverUnreachable");
       case "network_error":
-        return "Network error. Please check your connection and try again.";
+        return t("login.errors.networkError");
       default:
         return "";
     }
@@ -83,8 +86,9 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      {/* Theme toggle in top-right corner */}
-      <div className="fixed right-4 top-4">
+      {/* Theme and locale toggles in top-right corner */}
+      <div className="fixed right-4 top-4 flex items-center gap-2">
+        <LocaleToggle />
         <ThemeToggle />
       </div>
 
@@ -106,10 +110,8 @@ export function LoginPage() {
               <path d="M2 12l10 5 10-5" />
             </svg>
           </div>
-          <CardTitle className="text-2xl">Memorix Dashboard</CardTitle>
-          <CardDescription>
-            Enter your server URL and dashboard token to connect
-          </CardDescription>
+          <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
+          <CardDescription>{t("login.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -120,7 +122,7 @@ export function LoginPage() {
                 className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 <Server className="h-4 w-4" />
-                Server URL
+                {t("login.serverUrl")}
               </label>
               <input
                 id="server-url"
@@ -139,14 +141,14 @@ export function LoginPage() {
                 className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 <Key className="h-4 w-4" />
-                Dashboard Token
+                {t("login.dashboardToken")}
               </label>
               <input
                 id="token"
                 type="password"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="Enter your dashboard token"
+                placeholder={t("login.tokenPlaceholder")}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
@@ -164,10 +166,10 @@ export function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Connecting...
+                  {t("common.connecting")}
                 </>
               ) : (
-                "Connect"
+                t("common.connect")
               )}
             </Button>
           </form>
@@ -177,14 +179,14 @@ export function LoginPage() {
       {/* Footer */}
       <footer className="mt-6 text-center text-sm text-muted-foreground">
         <p>
-          Memorix Dashboard v{VERSION} &middot;{" "}
+          {t("login.footer", { version: VERSION })} &middot;{" "}
           <a
             href={DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="underline hover:text-foreground"
           >
-            Documentation
+            {t("common.documentation")}
           </a>
         </p>
       </footer>

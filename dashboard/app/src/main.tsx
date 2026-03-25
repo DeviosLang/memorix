@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { router } from "./router";
 import { initTheme } from "./lib/theme";
+import "./i18n"; // Initialize i18next
 import "./index.css";
 
 // Initialize theme before React renders

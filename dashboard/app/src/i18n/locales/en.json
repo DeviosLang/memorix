@@ -1,0 +1,145 @@
+{
+  "_locale": "en",
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "connect": "Connect",
+    "connecting": "Connecting...",
+    "logout": "Logout",
+    "documentation": "Documentation",
+    "total": "Total"
+  },
+  "login": {
+    "title": "Memorix Dashboard",
+    "description": "Enter your server URL and dashboard token to connect",
+    "serverUrl": "Server URL",
+    "dashboardToken": "Dashboard Token",
+    "tokenPlaceholder": "Enter your dashboard token",
+    "errors": {
+      "invalidToken": "Invalid dashboard token. Please check your token and try again.",
+      "serverUnreachable": "Unable to connect to server. Please verify the server URL is correct and the server is running.",
+      "networkError": "Network error. Please check your connection and try again."
+    },
+    "footer": "Memorix Dashboard v{{version}}"
+  },
+  "nav": {
+    "overview": "Overview",
+    "spaces": "Spaces",
+    "agents": "Agents",
+    "storage": "Storage"
+  },
+  "status": {
+    "healthy": "Healthy",
+    "degraded": "Degraded",
+    "unhealthy": "Unhealthy",
+    "active": "Active",
+    "inactive": "Inactive",
+    "systemStatus": "System Status"
+  },
+  "overview": {
+    "title": "Overview",
+    "activeTenants": "Active Tenants",
+    "activeAgents": "Active Agents",
+    "requestsPerSec": "Requests/sec",
+    "errorRate": "Error Rate",
+    "requestStats": "Request Statistics",
+    "totalRequests": "Total Requests",
+    "avgLatency": "Avg Latency",
+    "p50Latency": "P50 Latency",
+    "p95Latency": "P95 Latency",
+    "p99Latency": "P99 Latency",
+    "searchStats": "Search Statistics",
+    "vectorSearches": "Vector Searches",
+    "keywordSearches": "Keyword Searches",
+    "hybridSearches": "Hybrid Searches",
+    "avgSearchLatency": "Avg Search Latency",
+    "successRate": "Success Rate",
+    "topActiveSpaces": "Top Active Spaces",
+    "systemInfo": "System Info",
+    "uptime": "Uptime",
+    "started": "Started"
+  },
+  "spaces": {
+    "title": "Spaces",
+    "loading": "Loading spaces...",
+    "error": "Error loading spaces",
+    "sortBy": "Sort by:",
+    "memoryCount": "Memory Count",
+    "lastActivity": "Last Activity",
+    "table": {
+      "name": "Name",
+      "memories": "Memories",
+      "agents": "Agents",
+      "lastActive": "Last Active",
+      "storage": "Storage",
+      "status": "Status"
+    },
+    "totalSpaces": "{{count}} spaces",
+    "detail": {
+      "agents": "Agents ({{count}})",
+      "recentMemories": "Recent Memories",
+      "noAgents": "No agents in this space",
+      "noMemories": "No recent memories",
+      "loading": "Loading details...",
+      "agentId": "ID",
+      "agentType": "Type",
+      "lastActive": "Last Active",
+      "by": "by {{agent}} on {{date}}"
+    }
+  },
+  "agents": {
+    "title": "Agent Activity",
+    "loading": "Loading agent activity...",
+    "error": "Error loading agent activity",
+    "totalAgents": "Total Agents",
+    "groupBy": "Group by:",
+    "agentType": "Agent Type",
+    "space": "Space",
+    "agentsCount": "({{count}} agents)",
+    "table": {
+      "agentId": "Agent ID",
+      "space": "Space",
+      "lastActive": "Last Active",
+      "totalOps": "Total Ops (7d)"
+    },
+    "chart": {
+      "writes": "Writes",
+      "reads": "Reads"
+    }
+  },
+  "storage": {
+    "title": "Storage Analysis",
+    "loading": "Loading storage analysis...",
+    "error": "Error loading storage analysis",
+    "totalStorage": "Total Storage",
+    "totalSpaces": "Total Spaces",
+    "avgPerSpace": "Avg per Space",
+    "distribution": "Storage Distribution",
+    "bySpace": "Storage by Space",
+    "growthTrend": "Storage Growth Trend (30 Days)",
+    "allSpaces": "All Spaces",
+    "table": {
+      "space": "Space",
+      "storage": "Storage",
+      "memories": "Memories",
+      "percentOfTotal": "% of Total"
+    },
+    "chart": {
+      "storageMB": "Storage (MB)",
+      "memories": "Memories",
+      "storage": "Storage"
+    }
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{n}}m ago",
+    "hoursAgo": "{{n}}h ago",
+    "daysAgo": "{{n}}d ago",
+    "never": "Never",
+    "yesterday": "Yesterday"
+  },
+  "language": {
+    "en": "EN",
+    "zhCN": "中文"
+  }
+}
