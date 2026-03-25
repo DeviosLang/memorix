@@ -174,6 +174,16 @@ type Config struct {
 	// RulesInjectionHeader is prepended to rules content.
 	// Default: "## Project Rules\n\n"
 	RulesInjectionHeader string
+
+	// Dashboard configuration
+
+	// DashboardEnabled controls whether the dashboard API is available.
+	// Default is false (requires explicit token configuration).
+	DashboardEnabled bool
+
+	// DashboardToken is the authentication token for dashboard API access.
+	// Required if DashboardEnabled is true.
+	DashboardToken string
 }
 
 func Load() (*Config, error) {
@@ -254,6 +264,10 @@ func Load() (*Config, error) {
 		RulesInjectionEnabled:    envBool("MNEMO_RULES_INJECTION_ENABLED", true),
 		RulesInjectionMaxTokens:  envInt("MNEMO_RULES_INJECTION_MAX_TOKENS", 2000),
 		RulesInjectionHeader:     envOr("MNEMO_RULES_INJECTION_HEADER", "## Project Rules\n\n"),
+
+		// Dashboard configuration
+		DashboardEnabled: envBool("MNEMO_DASHBOARD_ENABLED", false),
+		DashboardToken:   os.Getenv("MNEMO_DASHBOARD_TOKEN"),
 	}
 	// Validate ingest mode.
 	switch cfg.IngestMode {
