@@ -1,0 +1,450 @@
+# Benchmark CI - Automated performance testing and regression detection
+#
+# Triggers:
+#   - Push to main branch (after PR merge)
+#   - Manual workflow dispatch
+#
+# Steps:
+#   1. Start memorix-server with MySQL via Docker Compose
+#   2. Run performance benchmarks
+#   3. Compare results against baseline
+#   4. Detect and report regressions
+#   5. Update baseline on main branch
+
+name: Benchmark
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Benchmark scenario to run'
+        required: false
+        default: 'crud_baseline'
+      duration:
+        description: 'Test duration in seconds'
+        required: false
+        default: '60'
+      concurrency:
+        description: 'Number of concurrent workers'
+        required: false
+        default: '10'
+      save_baseline:
+        description: 'Save as new baseline if no regression'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Benchmark configuration
+  BENCH_SCENARIO: ${{ github.event.inputs.scenario || 'crud_baseline' }}
+  BENCH_DURATION: ${{ github.event.inputs.duration || '60' }}
+  BENCH_CONCURRENCY: ${{ github.event.inputs.concurrency || '10' }}
+  BENCH_RESULTS_DIR: benchmark/perf/results
+
+jobs:
+  benchmark:
+    name: Run Performance Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: server/go.sum
+
+      - name: Build Docker images
+        run: |
+          docker compose -f docker-compose.benchmark.yml build
+
+      - name: Start services
+        run: |
+          docker compose -f docker-compose.benchmark.yml up -d
+          echo "Waiting for services to be healthy..."
+
+          # Wait for MySQL
+          for i in {1..30}; do
+            if docker compose -f docker-compose.benchmark.yml exec -T mysql mysqladmin ping -h localhost -u root -pbenchmark --silent 2>/dev/null; then
+              echo "MySQL is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          # Wait for memorix-server
+          for i in {1..30}; do
+            if curl -sf http://localhost:18081/healthz > /dev/null 2>&1; then
+              echo "memorix-server is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          # Final health check
+          curl -sf http://localhost:18081/healthz || {
+            echo "Server health check failed"
+            docker compose -f docker-compose.benchmark.yml logs memorix-server
+            exit 1
+          }
+
+      - name: Initialize database schema
+        run: |
+          # Create control plane tables
+          docker compose -f docker-compose.benchmark.yml exec -T mysql mysql -u root -pbenchmark memorix <<'EOF'
+          CREATE TABLE IF NOT EXISTS tenants (
+            id              VARCHAR(36)   PRIMARY KEY,
+            name            VARCHAR(255)  NOT NULL,
+            db_host         VARCHAR(255)  NOT NULL,
+            db_port         INT           NOT NULL,
+            db_user         VARCHAR(255)  NOT NULL,
+            db_password     VARCHAR(255)  NOT NULL,
+            db_name         VARCHAR(255)  NOT NULL,
+            db_tls          TINYINT(1)    NOT NULL DEFAULT 0,
+            provider        VARCHAR(50)   NOT NULL,
+            cluster_id      VARCHAR(255)  NULL,
+            claim_url       TEXT          NULL,
+            claim_expires_at TIMESTAMP    NULL,
+            status          VARCHAR(20)   NOT NULL DEFAULT 'active',
+            schema_version  INT           NOT NULL DEFAULT 1,
+            created_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            deleted_at      TIMESTAMP     NULL,
+            UNIQUE INDEX idx_tenant_name (name),
+            INDEX idx_tenant_status (status),
+            INDEX idx_tenant_provider (provider)
+          );
+
+          CREATE TABLE IF NOT EXISTS tenant_tokens (
+            api_token     VARCHAR(64)   PRIMARY KEY,
+            tenant_id     VARCHAR(36)   NOT NULL,
+            created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_tenant (tenant_id)
+          );
+          EOF
+
+      - name: Create benchmark tenant
+        id: create-tenant
+        run: |
+          # Generate tenant ID and token
+          TENANT_ID="bench-$(date +%s)"
+          API_TOKEN="mnemo_bench_$(openssl rand -hex 16)"
+
+          # Insert tenant directly (using same DB for control and data)
+          docker compose -f docker-compose.benchmark.yml exec -T mysql mysql -u root -pbenchmark memorix <<EOF
+          INSERT INTO tenants (id, name, db_host, db_port, db_user, db_password, db_name, provider, status, schema_version)
+          VALUES ('$TENANT_ID', '$TENANT_ID', 'mysql', 3306, 'memorix', 'memorix', 'memorix', 'local', 'active', 1);
+
+          INSERT INTO tenant_tokens (api_token, tenant_id)
+          VALUES ('$API_TOKEN', '$TENANT_ID');
+          EOF
+
+          # Create tenant schema
+          docker compose -f docker-compose.benchmark.yml exec -T mysql mysql -u memorix -pmemorix memorix <<'EOSQL'
+          CREATE TABLE IF NOT EXISTS memories (
+            id              VARCHAR(36)     PRIMARY KEY,
+            content         TEXT            NOT NULL,
+            source          VARCHAR(100),
+            tags            JSON,
+            metadata        JSON,
+            embedding       TEXT            NULL,
+            memory_type     VARCHAR(20)     NOT NULL DEFAULT 'pinned',
+            agent_id        VARCHAR(100)    NULL,
+            session_id      VARCHAR(100)    NULL,
+            state           VARCHAR(20)     NOT NULL DEFAULT 'active',
+            version         INT             DEFAULT 1,
+            updated_by      VARCHAR(100),
+            superseded_by   VARCHAR(36)     NULL,
+            created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            confidence      DECIMAL(3,2)    NOT NULL DEFAULT 1.0,
+            access_count    INT             NOT NULL DEFAULT 0,
+            last_accessed_at TIMESTAMP     NULL,
+            importance_score DECIMAL(5,4)   NULL,
+            INDEX idx_memory_type (memory_type),
+            INDEX idx_source (source),
+            INDEX idx_state (state),
+            INDEX idx_agent (agent_id),
+            INDEX idx_session (session_id),
+            INDEX idx_updated (updated_at),
+            INDEX idx_gc_stale (state, last_accessed_at),
+            INDEX idx_gc_importance (importance_score)
+          );
+
+          CREATE TABLE IF NOT EXISTS user_profile_facts (
+            fact_id           VARCHAR(36)     PRIMARY KEY,
+            user_id           VARCHAR(100)    NOT NULL,
+            category          VARCHAR(20)     NOT NULL COMMENT 'personal|preference|goal|skill',
+            `key`             VARCHAR(100)    NOT NULL,
+            value             TEXT            NOT NULL,
+            source            VARCHAR(20)     NOT NULL COMMENT 'explicit|inferred',
+            confidence        DECIMAL(3,2)    NOT NULL DEFAULT 1.0,
+            created_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            updated_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            last_accessed_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_facts (user_id),
+            INDEX idx_user_category (user_id, category),
+            INDEX idx_user_key (user_id, `key`),
+            INDEX idx_accessed_confidence (user_id, last_accessed_at, confidence)
+          );
+
+          CREATE TABLE IF NOT EXISTS reconcile_audit_logs (
+            log_id            VARCHAR(36)     PRIMARY KEY,
+            user_id           VARCHAR(100)    NOT NULL,
+            fact_id           VARCHAR(36)     NOT NULL,
+            category          VARCHAR(20)     NOT NULL,
+            `key`             VARCHAR(100)    NOT NULL,
+            old_value         TEXT            NULL,
+            new_value         TEXT            NOT NULL,
+            decision          VARCHAR(20)     NOT NULL,
+            reason            TEXT            NULL,
+            source            VARCHAR(100)    NULL,
+            created_at        TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_audit (user_id, created_at DESC),
+            INDEX idx_fact_audit (fact_id, created_at DESC),
+            INDEX idx_category_audit (user_id, category, created_at DESC)
+          );
+
+          CREATE TABLE IF NOT EXISTS conversation_summaries (
+            id              VARCHAR(36)     PRIMARY KEY,
+            user_id         VARCHAR(100)    NOT NULL,
+            agent_id        VARCHAR(100)    NOT NULL,
+            session_id      VARCHAR(100)    NOT NULL,
+            summary         TEXT            NOT NULL,
+            token_count     INT             NOT NULL DEFAULT 0,
+            created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_user_session (user_id, session_id),
+            INDEX idx_user_agent (user_id, agent_id),
+            INDEX idx_created (created_at DESC)
+          );
+
+          CREATE TABLE IF NOT EXISTS memory_gc_logs (
+            log_id          VARCHAR(36)     PRIMARY KEY,
+            memory_id       VARCHAR(36)     NOT NULL,
+            action          VARCHAR(20)     NOT NULL,
+            reason          TEXT            NULL,
+            metrics_before  JSON            NULL,
+            metrics_after   JSON            NULL,
+            created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_memory (memory_id),
+            INDEX idx_created (created_at DESC)
+          );
+
+          CREATE TABLE IF NOT EXISTS memory_gc_snapshots (
+            snapshot_id     VARCHAR(36)     PRIMARY KEY,
+            memory_id       VARCHAR(36)     NOT NULL,
+            content         TEXT            NOT NULL,
+            tags            JSON            NULL,
+            metadata        JSON            NULL,
+            snapshot_reason VARCHAR(50)     NOT NULL,
+            created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_memory (memory_id),
+            INDEX idx_created (created_at DESC)
+          );
+          EOSQL
+
+          echo "tenant_id=$TENANT_ID" >> $GITHUB_OUTPUT
+          echo "api_token=$API_TOKEN" >> $GITHUB_OUTPUT
+          echo "TENANT_ID=$TENANT_ID" >> $GITHUB_ENV
+          echo "MNEMO_API_TOKEN=$API_TOKEN" >> $GITHUB_ENV
+
+      - name: Run benchmark
+        id: benchmark
+        env:
+          MNEMO_API_URL: http://localhost:18081
+        run: |
+          echo "Running benchmark: scenario=$BENCH_SCENARIO, duration=$BENCH_DURATION, concurrency=$BENCH_CONCURRENCY"
+
+          # Run performance benchmark
+          python3 benchmark/perf/load_test.py \
+            --api-url "$MNEMO_API_URL" \
+            --api-token "$MNEMO_API_TOKEN" \
+            --scenario-file "benchmark/perf/scenarios/${BENCH_SCENARIO}.yaml" \
+            --results-dir "$BENCH_RESULTS_DIR" \
+            --duration "$BENCH_DURATION" \
+            --concurrency "$BENCH_CONCURRENCY" \
+            --ramp-up 2
+
+          # Find the latest results file
+          LATEST_RESULTS=$(ls -t $BENCH_RESULTS_DIR/perf-*.json 2>/dev/null | head -1)
+          if [ -z "$LATEST_RESULTS" ]; then
+            echo "ERROR: No benchmark results found"
+            exit 1
+          fi
+
+          echo "results_file=$LATEST_RESULTS" >> $GITHUB_OUTPUT
+          echo "RESULTS_FILE=$LATEST_RESULTS" >> $GITHUB_ENV
+
+          # Print results summary
+          echo ""
+          echo "=== Benchmark Results ==="
+          cat "$LATEST_RESULTS"
+
+      - name: Compare with baseline
+        id: compare
+        run: |
+          BASELINE_FILE="benchmark/results/baseline.json"
+
+          if [ -f "$BASELINE_FILE" ]; then
+            echo "Comparing with baseline..."
+
+            # Run comparison
+            python3 benchmark/scripts/baseline.py compare \
+              "$RESULTS_FILE" \
+              --baseline-path "$BASELINE_FILE" \
+              --output-summary benchmark/results/comparison-summary.md
+
+            # Check exit code
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "regression=false" >> $GITHUB_OUTPUT
+              echo "No regression detected"
+            else
+              echo "regression=true" >> $GITHUB_OUTPUT
+              echo "REGRESSION DETECTED - see comparison summary"
+            fi
+          else
+            echo "No baseline found - skipping comparison"
+            echo "regression=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark/perf/results/perf-*.json
+            benchmark/results/comparison-summary.md
+          retention-days: 30
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read comparison summary if it exists
+            let summary = '';
+            try {
+              summary = fs.readFileSync('benchmark/results/comparison-summary.md', 'utf8');
+            } catch (e) {
+              // Generate summary from results
+              const results = JSON.parse(fs.readFileSync(process.env.RESULTS_FILE, 'utf8'));
+              const metrics = results.summary || {};
+              const latency = results.latency || {};
+
+              summary = `## Benchmark Results\n\n`;
+              summary += `| Metric | Value |\n`;
+              summary += `|--------|-------|\n`;
+              summary += `| P50 Latency | ${latency.p50_ms?.toFixed(2) || 'N/A'} ms |\n`;
+              summary += `| P95 Latency | ${latency.p95_ms?.toFixed(2) || 'N/A'} ms |\n`;
+              summary += `| P99 Latency | ${latency.p99_ms?.toFixed(2) || 'N/A'} ms |\n`;
+              summary += `| QPS | ${metrics.requests_per_second?.toFixed(2) || 'N/A'} req/s |\n`;
+              summary += `| Total Requests | ${metrics.total_requests || 'N/A'} |\n`;
+              summary += `| Error Rate | ${((metrics.error_rate || 0) * 100).toFixed(2)}% |\n`;
+            }
+
+            // Find commits associated with this push
+            const commits = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              per_page: 1
+            });
+
+            // Post comment to any open PRs that contain this commit
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              sort: 'updated',
+              direction: 'desc',
+              per_page: 5
+            });
+
+            for (const pr of prs.data) {
+              if (pr.merge_commit_sha === context.sha) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: summary
+                });
+                break;
+              }
+            }
+
+      - name: Update baseline (on main branch)
+        if: |
+          github.ref == 'refs/heads/main' &&
+          steps.compare.outputs.regression != 'true' &&
+          (github.event_name == 'push' || github.event.inputs.save_baseline == 'true')
+        run: |
+          echo "Updating baseline with new results..."
+          python3 benchmark/scripts/baseline.py save \
+            "$RESULTS_FILE" \
+            --baseline-path benchmark/results/baseline.json
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit updated baseline
+          git add benchmark/results/baseline.json
+          git commit -m "chore: update benchmark baseline [skip ci]" || echo "No changes to commit"
+          git push origin main || echo "Push failed or no changes"
+
+      - name: Fail on regression
+        if: steps.compare.outputs.regression == 'true'
+        run: |
+          echo "::error::Performance regression detected! See comparison summary for details."
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.benchmark.yml down -v --remove-orphans
+
+  # Report regression status as a check
+  report-status:
+    name: Report Benchmark Status
+    needs: benchmark
+    runs-on: ubuntu-latest
+    if: always() && needs.benchmark.result == 'failure'
+
+    steps:
+      - name: Report failure
+        run: |
+          echo "::error::Benchmark failed or regression detected. Please review the benchmark results."
+          exit 1

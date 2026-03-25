@@ -38,5 +38,10 @@ __pycache__/
 pwd.txt
 ft_local
 
-# Benchmark results
+# Benchmark results (keep baseline.json in repo)
 benchmark/results/*
+!benchmark/results/baseline.json
+benchmark/perf/results/*
+!benchmark/perf/results/.gitkeep
+.benchmark-token
+benchmark/results/comparison-summary.md
