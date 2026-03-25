@@ -665,7 +665,7 @@ memorix/
 │   ├── openclaw.plugin.json
 │   └── package.json
 │
-├── claude-plugin/                   # Claude Code plugin (Hooks + Skills)
+├── claude-plugin/              # Claude Code plugin (Hooks + Skills)
 │   ├── .claude-plugin/
 │   │   └── plugin.json
 │   ├── hooks/
@@ -679,6 +679,27 @@ memorix/
 │       └── memory-recall/
 │           └── SKILL.md
 │
+├── benchmark/                  # Benchmark harness
+│   ├── README.md               # Documentation
+│   ├── Makefile                # Make targets
+│   ├── configs/                # Configuration files
+│   ├── prompts/                # Functional test scenarios
+│   ├── perf/                   # Performance benchmarks
+│   │   ├── load_test.py
+│   │   └── scenarios/
+│   └── scripts/                # Benchmark runners
+│
+├── dashboard/                  # Web dashboard
+│   ├── README.md               # Documentation
+│   ├── docs/                   # Specification docs
+│   └── app/                    # React SPA
+│       ├── package.json
+│       ├── vite.config.ts
+│       └── src/
+│           ├── pages/          # Page components
+│           ├── api/            # API client
+│           └── components/     # UI components
+│
 ├── assets/logo.png
 ├── docs/DESIGN.md
 ├── README.md
@@ -689,7 +710,268 @@ memorix/
 └── .gitignore
 ```
 
-## 14. Scope Boundaries
+## 14. Benchmark Architecture
+
+The benchmark module provides tools for evaluating memory recall quality and API performance.
+
+### 14.1 Overview
+
+The benchmark framework supports two types of tests:
+
+1. **Functional Benchmarks**: Test memory recall quality through scripted conversations
+2. **Performance Benchmarks**: Measure API latency, throughput, and scalability under load
+
+### 14.2 Directory Structure
+
+```
+benchmark/
+├── README.md                 # Documentation
+├── Makefile                  # Make targets
+├── configs/
+│   └── default.yaml          # Default configuration
+├── prompts/                  # Functional test scenarios
+│   ├── simple-recall.yaml    # Basic recall test
+│   ├── hybrid-search.yaml    # Semantic search test
+│   └── smart-ingest.yaml     # LLM extraction test
+├── perf/                     # Performance benchmarks
+│   ├── load_test.py          # Load testing framework
+│   ├── scenarios/            # Workload definitions
+│   │   ├── crud_baseline.yaml
+│   │   ├── mixed_workload.yaml
+│   │   └── scale_*.yaml
+│   └── results/              # Benchmark outputs
+├── scripts/
+│   ├── benchmark.sh          # Main runner
+│   ├── drive-session.py      # Functional driver
+│   ├── drive-ab-session.py   # A/B test driver
+│   └── report.py             # HTML report generator
+└── results/                  # Benchmark outputs
+```
+
+### 14.3 Functional Benchmarks
+
+Functional benchmarks test the core memory operations:
+
+| Scenario | Description |
+|----------|-------------|
+| `simple-recall` | Basic store and recall with expected facts validation |
+| `hybrid-search` | Semantic similarity search (different wording) |
+| `smart-ingest` | LLM fact extraction and recall |
+
+**Scenario Format**:
+
+```yaml
+name: "scenario-name"
+description: "Test description"
+prompts:
+  - id: "store-1"
+    type: "store"
+    text: "Remember that X is Y"
+    tags: ["category"]
+  - id: "query-1"
+    type: "query"
+    text: "What is X?"
+    expected_facts:
+      - "Y"
+```
+
+**Validation**: Query responses are validated against `expected_facts` using case-insensitive substring matching.
+
+### 14.4 Performance Benchmarks
+
+Performance benchmarks measure API behavior under load:
+
+| Scenario | Description |
+|----------|-------------|
+| `crud_baseline` | Baseline CRUD: write → read → mixed |
+| `mixed_workload` | Real-world: 50% query, 30% write, 20% update |
+| `search_comparison` | Keyword vs hybrid search performance |
+| `scale_1k/10k/100k` | Search latency with pre-populated datasets |
+
+**Phase-Based Workload**:
+
+```yaml
+phases:
+  - name: "phase-name"
+    duration_seconds: 30
+    concurrency: 10
+    ramp_up_seconds: 2
+    operations:
+      - type: "create_memory"
+        weight: 40
+      - type: "search_memory"
+        weight: 60
+```
+
+### 14.5 Metrics Collection
+
+| Metric | Description |
+|--------|-------------|
+| `latency_p50/p95/p99` | Latency percentiles |
+| `throughput` | Requests per second |
+| `error_rate` | Failed request percentage |
+| `recall_at_k` | Recall accuracy at K results |
+
+### 14.6 CI Integration
+
+The benchmark framework integrates with CI pipelines:
+
+```yaml
+# GitHub Actions workflow
+- name: Run benchmarks
+  run: |
+    bash benchmark/scripts/benchmark.sh --all
+    cd benchmark && make bench-perf
+```
+
+Baseline comparison detects performance regressions:
+
+```bash
+python3 benchmark/scripts/baseline.py \
+  --baseline baseline.json \
+  --current latest.json \
+  --threshold 10
+```
+
+## 15. Dashboard Architecture
+
+The dashboard provides a web-based administrative interface for monitoring memorix deployments.
+
+### 15.1 Overview
+
+The dashboard is a single-page application (SPA) built with React and TypeScript, designed for DevOps engineers and system administrators to monitor system health and manage tenants.
+
+### 15.2 Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| Framework | React 19 | UI framework |
+| Build Tool | Vite 7 | Development and build |
+| Language | TypeScript 5 | Type safety |
+| Styling | Tailwind CSS 4 | Utility-first CSS |
+| UI Components | Radix UI + shadcn/ui | Accessible components |
+| Routing | TanStack Router | Client-side routing |
+| Data Fetching | TanStack Query | Server state management |
+| Charts | Recharts | Data visualization |
+| i18n | i18next | Internationalization |
+
+### 15.3 Directory Structure
+
+```
+dashboard/
+├── README.md
+├── docs/
+│   ├── dashboard-spec.md    # Product specification
+│   └── data-contract.md     # API contract
+└── app/
+    ├── index.html
+    ├── package.json
+    ├── vite.config.ts       # Build config + API proxy
+    ├── tsconfig.json
+    └── src/
+        ├── main.tsx         # Entry point
+        ├── router.tsx       # Route definitions
+        ├── pages/           # Page components
+        │   ├── dashboard.tsx  # Overview
+        │   ├── storage.tsx    # Memory stats
+        │   ├── agents.tsx     # Agent stats
+        │   ├── spaces.tsx     # Tenant stats
+        │   └── login.tsx      # Authentication
+        ├── api/             # API client
+        │   ├── client.ts    # HTTP client
+        │   └── queries.ts   # TanStack Query hooks
+        ├── types/           # TypeScript types
+        ├── lib/             # Utilities
+        ├── i18n/            # Internationalization
+        └── components/      # React components
+```
+
+### 15.4 API Contract
+
+The dashboard communicates with memorix-server via the Dashboard API:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/dashboard/overview` | System health and request stats |
+| `GET /api/dashboard/memory-stats` | Memory storage analytics |
+| `GET /api/dashboard/search-stats` | Search performance metrics |
+| `GET /api/dashboard/gc-stats` | GC operation monitoring |
+| `GET /api/dashboard/space-stats` | Tenant and agent statistics |
+| `GET /api/dashboard/conflict-stats` | Conflict resolution metrics |
+
+All endpoints require `X-Dashboard-Token` header authentication.
+
+### 15.5 Authentication
+
+The dashboard uses token-based authentication:
+
+1. Server is configured with `MNEMO_DASHBOARD_TOKEN`
+2. User enters token on login page
+3. Token is stored in localStorage
+4. API client adds token to all requests via `X-Dashboard-Token` header
+5. Server validates token and returns data
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────────┐
+│ Login Page  │────>│ localStorage│────>│ API Client      │
+│ (token input)│    │ (token store)│    │ (header inject) │
+└─────────────┘     └─────────────┘     └────────┬────────┘
+                                                 │
+                                                 ▼
+                        ┌─────────────────────────────────┐
+                        │ memorix-server                  │
+                        │ (validates X-Dashboard-Token)   │
+                        └─────────────────────────────────┘
+```
+
+### 15.6 Deployment
+
+The dashboard is deployed as static files with API proxying:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ Browser         │────>│ Web Server      │────>│ memorix-server  │
+│ (SPA)           │     │ (Nginx/Caddy)   │     │ (API backend)   │
+│                 │     │                 │     │                 │
+│ /dashboard/*    │     │ /api/* → proxy  │     │ /api/dashboard/*│
+│ (static files)  │     │ /* → static     │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+**Nginx Configuration**:
+
+```nginx
+server {
+    location / {
+        root /var/www/dashboard/dist;
+        try_files $uri /index.html;
+    }
+    location /api/ {
+        proxy_pass http://memorix-server:8080;
+    }
+}
+```
+
+### 15.7 Data Refresh Strategy
+
+| View | Refresh Interval | Method |
+|------|------------------|--------|
+| Overview | 30 seconds | TanStack Query auto-refetch |
+| Detailed stats | 60 seconds | TanStack Query auto-refetch |
+| All views | Manual | Refresh button |
+
+### 15.8 Internationalization
+
+The dashboard supports multiple languages:
+
+| Language | Code | Locale File |
+|----------|------|-------------|
+| English | `en` | `src/i18n/locales/en.json` |
+| Chinese (Simplified) | `zh-CN` | `src/i18n/locales/zh-CN.json` |
+
+Language preference is stored in localStorage and persisted across sessions.
+
+## 16. Scope Boundaries
 
 What this system does:
 - Cloud-persistent memory for AI agents (personal or shared)
@@ -704,27 +986,39 @@ What this system does NOT do:
 - Permission/role management beyond spaces
 - Embedding model hosting (uses external APIs)
 
-## 15. Implementation Plan
+## 17. Implementation Plan
 
 ### Phase 1: Core + Direct Mode
 
 1. ~~Go API server: CRUD + auth + keyword search + upsert~~ ✅
 2. ~~OpenClaw plugin (server mode)~~ ✅
 3. ~~Claude Code plugin (server mode)~~ ✅
-4. **Direct mode for OpenClaw plugin**: `DirectBackend` + `@tidbcloud/serverless` + auto schema init
-5. **Direct mode for Claude Code plugin**: `common.sh` mode-aware helpers using TiDB HTTP Data API
-6. **Schema evolution**: Add `metadata JSON` and `embedding VECTOR(1536)` columns
-7. **Hybrid search**: Embedder abstraction + vector search in both modes
+4. ~~Direct mode for OpenClaw plugin~~ ✅
+5. ~~Direct mode for Claude Code plugin~~ ✅
+6. ~~Schema evolution: Add `metadata JSON` and `embedding VECTOR(1536)` columns~~ ✅
+7. ~~Hybrid search: Embedder abstraction + vector search in both modes~~ ✅
 
-### Phase 2: Smart Features
+### Phase 1.5: Smart Features
 
-1. Server-side embedding generation (Go server calls OpenAI/Ollama on write)
-2. LLM conflict merge (configurable per space)
-3. Auto-tagging via LLM on write
+1. ~~Server-side embedding generation (Go server calls OpenAI/Ollama on write)~~ ✅
+2. ~~LLM conflict merge (configurable per space)~~ ✅
+3. ~~Auto-tagging via LLM on write~~ ✅
 
-### Phase 3: Polish
+### Phase 1.6: Operations Tooling
 
-1. Web dashboard for space management
+1. ~~Benchmark harness (functional recall tests + performance load tests)~~ ✅
+2. ~~Dashboard (admin monitoring panel)~~ ✅
+
+### Phase 2: Memory Management
+
+1. Memory tiers (`working/short/long/reference`)
+2. Salience scoring
+3. Auto promote/demote
+4. Archive-first forgetting
+
+### Phase 3: Migration & Polish
+
+1. Knowledge base migration (tenant-to-tenant + `memorix migrate` CLI)
 2. Bulk import/export
 3. Usage analytics
 4. `memorix setup` CLI wizard for one-command onboarding
