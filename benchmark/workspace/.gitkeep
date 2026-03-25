@@ -1,0 +1,7 @@
+# This directory contains shared context files for benchmark sessions
+# Files here are copied into the benchmark workspace for each run
+#
+# Example files:
+# - SOUL.md      # Agent personality/context
+# - IDENTITY.md  # Agent identity definition
+# - USER.md      # User context for testing

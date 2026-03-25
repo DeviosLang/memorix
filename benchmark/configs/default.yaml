@@ -1,0 +1,42 @@
+# Memorix Benchmark Configuration
+# Override with environment variables or custom config files
+
+server:
+  # memorix server base URL
+  base_url: "${MNEMO_API_URL:http://127.0.0.1:18081}"
+  # HTTP request timeout in seconds
+  timeout_seconds: 30
+  # Maximum retry attempts for transient failures
+  max_retries: 3
+
+benchmark:
+  # Number of concurrent benchmark sessions
+  concurrency: 1
+  # Per-prompt timeout in seconds
+  prompt_timeout_seconds: 600
+  # Enable garbage collection between sessions
+  gc_enabled: true
+  # Warmup iterations before timing
+  warmup_iterations: 0
+
+embedding:
+  # Embedding model for semantic search tests
+  model: "${MNEMO_EMBED_MODEL:text-embedding-3-small}"
+  # Embedding dimension (for validation)
+  dimension: 1536
+
+storage:
+  # Memory storage mode: "sections" or "flat"
+  mode: "sections"
+  # Enable auto-embedding on ingest
+  auto_embed: true
+
+metrics:
+  # Metrics to collect
+  collect:
+    - latency_p50
+    - latency_p99
+    - recall_at_k
+    - throughput
+  # Output format: "json", "csv", "both"
+  output_format: "json"

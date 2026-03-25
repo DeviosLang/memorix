@@ -1,0 +1,11 @@
+name: "basic-recall"
+description: "Basic memory recall test scenario"
+prompts:
+  - text: "My favorite programming language is Go and I work on distributed systems."
+    type: "store"
+  - text: "I prefer dark mode for all my editors and IDEs."
+    type: "store"
+  - text: "What programming language do I prefer?"
+    type: "query"
+  - text: "What is my editor theme preference?"
+    type: "query"

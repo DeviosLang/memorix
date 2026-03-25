@@ -37,3 +37,6 @@ dist/
 __pycache__/
 pwd.txt
 ft_local
+
+# Benchmark results
+benchmark/results/*

@@ -1,0 +1,7 @@
+# This directory contains benchmark results
+# Results are organized by timestamp: YYYYMMDD-HHMMSS/
+# Each run creates:
+# - benchmark-results.json
+# - report.html
+# - transcript.md
+# - metrics.json
