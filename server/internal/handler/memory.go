@@ -3,10 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/devioslang/memorix/server/internal/domain"
@@ -259,4 +261,29 @@ func (s *Server) bootstrapMemories(w http.ResponseWriter, r *http.Request) {
 		"memories": memories,
 		"total":    len(memories),
 	})
+}
+
+// exportMemories handles GET /v1alpha1/memorix/{tenantID}/export
+// Returns all active memories in a portable JSON format.
+func (s *Server) exportMemories(w http.ResponseWriter, r *http.Request) {
+	auth := authInfo(r)
+	svc := s.resolveServices(auth)
+
+	// Get agent_id from query parameter (optional)
+	agentID := r.URL.Query().Get("agent_id")
+	if agentID == "" {
+		agentID = auth.AgentName
+	}
+
+	exportFile, err := svc.memory.Export(r.Context(), auth.TenantID, agentID)
+	if err != nil {
+		s.handleError(w, err)
+		return
+	}
+
+	// Set response headers for file download
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=memorix-export-%s.json", time.Now().Format("2006-01-02")))
+
+	respond(w, http.StatusOK, exportFile)
 }

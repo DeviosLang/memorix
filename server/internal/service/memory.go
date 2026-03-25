@@ -497,3 +497,51 @@ func validateMemoryInput(content string, tags []string) error {
 	}
 	return nil
 }
+
+// Export returns all active memories in a portable export format.
+// Compatible with mem9's export format for interoperability.
+func (s *MemoryService) Export(ctx context.Context, tenantID, agentID string) (*domain.MemoryExportFile, error) {
+	// Fetch all active memories
+	filter := domain.MemoryFilter{
+		State:  string(domain.StateActive),
+		Limit:  200,
+		Offset: 0,
+	}
+
+	var allMemories []domain.Memory
+	for {
+		memories, total, err := s.memories.List(ctx, filter)
+		if err != nil {
+			return nil, fmt.Errorf("list memories for export: %w", err)
+		}
+		allMemories = append(allMemories, memories...)
+		if len(allMemories) >= total {
+			break
+		}
+		filter.Offset += filter.Limit
+	}
+
+	// Convert to export entries
+	entries := make([]domain.MemoryExportEntry, len(allMemories))
+	for i, m := range allMemories {
+		entries[i] = domain.MemoryExportEntry{
+			ID:         m.ID,
+			Content:    m.Content,
+			Source:     m.Source,
+			Tags:       m.Tags,
+			Metadata:   m.Metadata,
+			MemoryType: m.MemoryType,
+			State:      m.State,
+			CreatedAt:  m.CreatedAt,
+			UpdatedAt:  m.UpdatedAt,
+		}
+	}
+
+	return &domain.MemoryExportFile{
+		SchemaVersion: "memorix.memory_export.v1",
+		ExportedAt:    time.Now(),
+		SourceSpaceID: tenantID,
+		AgentID:       agentID,
+		Memories:      entries,
+	}, nil
+}
