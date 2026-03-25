@@ -1,7 +1,7 @@
 MAKEFILE_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 IMG ?= $(REGISTRY)/memorix-server:$(COMMIT)
 
-.PHONY: build build-linux vet clean run test test-integration docker docker-build docker-run bench bench-report bench-clean bench-perf bench-perf-report bench-perf-clean
+.PHONY: build build-linux vet clean run test test-integration docker docker-build docker-run bench bench-report bench-clean bench-perf bench-perf-report bench-perf-clean bench-baseline-show bench-baseline-save bench-baseline-compare bench-ci-setup
 
 build:
 	mkdir -p $(MAKEFILE_DIR)/./bin
@@ -117,4 +117,29 @@ bench-perf-clean:
 	@mkdir -p $(MAKEFILE_DIR)/benchmark/perf/results
 	@touch $(MAKEFILE_DIR)/benchmark/perf/results/.gitkeep
 	@echo "Performance benchmark results cleaned."
+
+# Baseline management targets
+bench-baseline-show:
+	@python3 $(MAKEFILE_DIR)/benchmark/scripts/baseline.py show
+
+bench-baseline-save:
+	@latest=$$(ls -td $(MAKEFILE_DIR)/benchmark/perf/results/perf-*.json 2>/dev/null | head -1); \
+	if [ -z "$$latest" ]; then \
+		echo "ERROR: No performance benchmark results found. Run 'make bench-perf' first."; \
+		exit 1; \
+	fi; \
+	echo "Saving $$latest as baseline..."; \
+	python3 $(MAKEFILE_DIR)/benchmark/scripts/baseline.py save "$$latest"
+
+bench-baseline-compare:
+	@latest=$$(ls -td $(MAKEFILE_DIR)/benchmark/perf/results/perf-*.json 2>/dev/null | head -1); \
+	if [ -z "$$latest" ]; then \
+		echo "ERROR: No performance benchmark results found. Run 'make bench-perf' first."; \
+		exit 1; \
+	fi; \
+	python3 $(MAKEFILE_DIR)/benchmark/scripts/baseline.py compare "$$latest"
+
+# CI setup target
+bench-ci-setup:
+	@bash $(MAKEFILE_DIR)/benchmark/scripts/ci-setup.sh
 

@@ -1,0 +1,63 @@
+# Docker Compose for memorix benchmark CI
+#
+# This compose file sets up a complete environment for running benchmarks:
+# - MySQL 8.0 (TiDB compatible) for data storage
+# - memorix-server API
+#
+# Usage:
+#   docker compose -f docker-compose.benchmark.yml up -d
+#   # Wait for services to be healthy
+#   ./benchmark/scripts/ci-setup.sh  # Creates test tenant
+#   export MNEMO_API_TOKEN=$(cat .benchmark-token)
+#   make bench-perf
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: memorix-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: benchmark
+      MYSQL_DATABASE: memorix
+      MYSQL_USER: memorix
+      MYSQL_PASSWORD: memorix
+    ports:
+      - "13306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pbenchmark"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  memorix-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: memorix-server
+    ports:
+      - "18081:8080"
+    environment:
+      MNEMO_DSN: "memorix:memorix@tcp(mysql:3306)/memorix?parseTime=true&charset=utf8mb4"
+      MNEMO_PORT: "8080"
+      MNEMO_RATE_LIMIT: "1000"
+      MNEMO_RATE_BURST: "2000"
+      MNEMO_TENANT_POOL_MAX_IDLE: "10"
+      MNEMO_TENANT_POOL_MAX_OPEN: "50"
+      MNEMO_TENANT_POOL_TOTAL_LIMIT: "200"
+      MNEMO_GC_ENABLED: "false"
+      MNEMO_FTS_ENABLED: "false"
+      MNEMO_TIDB_ZERO_ENABLED: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  mysql_data:
