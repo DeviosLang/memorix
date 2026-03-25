@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { useSessionTimeout } from "@/lib/session";
+import { useTranslation } from "react-i18next";
+import { Sidebar } from "@/components/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { clearSession } from "@/api/client";
+import { LocaleToggle } from "@/components/locale-toggle";
+import { useSessionTimeout } from "@/lib/session";
 import { useAgents } from "@/api/queries";
+import { formatRelativeTime } from "@/lib/i18n";
 import type { AgentActivity, ActivityDataPoint } from "@/types/metrics";
 import {
   BarChart,
@@ -16,22 +18,13 @@ import {
 } from "recharts";
 
 export function AgentsPage() {
+  const { t } = useTranslation();
   useSessionTimeout();
   const { data, isLoading, error } = useAgents();
   const [groupBy, setGroupBy] = useState<"type" | "space">("type");
 
-  const handleLogout = () => {
-    clearSession();
-  };
-
   const timeAgo = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return "Just now";
-    if (seconds < 3600) return Math.floor(seconds / 60) + "m ago";
-    if (seconds < 86400) return Math.floor(seconds / 3600) + "h ago";
-    return Math.floor(seconds / 86400) + "d ago";
+    return formatRelativeTime(t, dateStr);
   };
 
   // Group agents
@@ -74,31 +67,36 @@ export function AgentsPage() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar onLogout={handleLogout} />
-      <main className="flex-1">
-        <header className="flex h-16 items-center justify-between border-b border-border px-6">
-          <h1 className="text-xl font-semibold">Agent Activity</h1>
-          <div className="flex items-center gap-4">
+      <Sidebar />
+      <main className="flex-1 pt-14 lg:pt-0">
+        <header className="flex h-16 items-center justify-between border-b border-border px-4 lg:px-6">
+          <h1 className="text-xl font-semibold">{t("agents.title")}</h1>
+          <div className="hidden items-center gap-4 lg:flex">
+            <LocaleToggle />
             <ThemeToggle />
           </div>
         </header>
-        <div className="p-6">
-          {isLoading && <div className="text-muted-foreground">Loading agent activity...</div>}
-          {error && <div className="text-red-500">Error loading agent activity</div>}
+        <div className="p-4 lg:p-6">
+          {isLoading && (
+            <div className="text-muted-foreground">{t("agents.loading")}</div>
+          )}
+          {error && (
+            <div className="text-red-500">{t("agents.error")}</div>
+          )}
 
           {data && (
             <>
               {/* Stats Cards */}
-              <div className="mb-6 grid gap-4 md:grid-cols-4">
-                <StatCard title="Total Agents" value={data.total_agents} />
+              <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <StatCard title={t("agents.totalAgents")} value={data.total_agents} />
                 <StatCard title="Claude Code" value={data.by_type["claude-code"] || 0} />
                 <StatCard title="OpenClaw" value={data.by_type["openclaw"] || 0} />
                 <StatCard title="OpenCode" value={data.by_type["opencode"] || 0} />
               </div>
 
               {/* Group By Toggle */}
-              <div className="mb-4 flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">Group by:</span>
+              <div className="mb-4 flex flex-wrap items-center gap-2 lg:gap-4">
+                <span className="text-sm text-muted-foreground">{t("agents.groupBy")}</span>
                 <button
                   onClick={() => setGroupBy("type")}
                   className={`rounded-md px-3 py-1 text-sm ${
@@ -107,7 +105,7 @@ export function AgentsPage() {
                       : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  Agent Type
+                  {t("agents.agentType")}
                 </button>
                 <button
                   onClick={() => setGroupBy("space")}
@@ -117,7 +115,7 @@ export function AgentsPage() {
                       : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  Space
+                  {t("agents.space")}
                 </button>
               </div>
 
@@ -130,7 +128,7 @@ export function AgentsPage() {
                         {groupBy === "type" && <AgentTypeBadge type={group} />}
                         <h3 className="font-semibold">{group}</h3>
                         <span className="text-sm text-muted-foreground">
-                          ({agents.length} agents)
+                          {t("agents.agentsCount", { count: agents.length })}
                         </span>
                       </div>
                     </div>
@@ -153,21 +151,21 @@ export function AgentsPage() {
                               borderRadius: "6px",
                             }}
                           />
-                          <Bar dataKey="writes" name="Writes" fill="hsl(var(--primary))" />
-                          <Bar dataKey="reads" name="Reads" fill="hsl(var(--chart-2))" />
+                          <Bar dataKey="writes" name={t("agents.chart.writes")} fill="hsl(var(--primary))" />
+                          <Bar dataKey="reads" name={t("agents.chart.reads")} fill="hsl(var(--chart-2))" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
 
                     {/* Agent List */}
-                    <div className="rounded border border-border">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto rounded border border-border">
+                      <table className="w-full min-w-[500px] text-sm">
                         <thead>
                           <tr className="border-b border-border bg-muted/50">
-                            <th className="px-3 py-2 text-left">Agent ID</th>
-                            <th className="px-3 py-2 text-left">Space</th>
-                            <th className="px-3 py-2 text-left">Last Active</th>
-                            <th className="px-3 py-2 text-right">Total Ops (7d)</th>
+                            <th className="px-3 py-2 text-left">{t("agents.table.agentId")}</th>
+                            <th className="px-3 py-2 text-left">{t("agents.table.space")}</th>
+                            <th className="px-3 py-2 text-left">{t("agents.table.lastActive")}</th>
+                            <th className="px-3 py-2 text-right">{t("agents.table.totalOps")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -220,83 +218,5 @@ function AgentTypeBadge({ type }: { type: string }) {
     >
       {type}
     </span>
-  );
-}
-
-function Sidebar({ onLogout }: { onLogout: () => void }) {
-  return (
-    <aside className="flex w-64 flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4 text-primary-foreground"
-          >
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-        </div>
-        <span className="text-lg font-semibold">Memorix</span>
-      </div>
-      <nav className="flex-1 space-y-1 p-2">
-        <NavItem href="/dashboard" label="Overview" />
-        <NavItem href="/dashboard/spaces" label="Spaces" />
-        <NavItem href="/dashboard/agents" label="Agents" active />
-        <NavItem href="/dashboard/storage" label="Storage" />
-      </nav>
-      <div className="border-t border-border p-2">
-        <Link
-          to="/"
-          onClick={onLogout}
-          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16,17 21,12 16,7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          Logout
-        </Link>
-      </div>
-    </aside>
-  );
-}
-
-function NavItem({
-  href,
-  label,
-  active = false,
-}: {
-  href: string;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      to={href}
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-        active
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

@@ -1,10 +1,12 @@
-import { Link } from "@tanstack/react-router";
-import { useSessionTimeout } from "@/lib/session";
+import { useTranslation } from "react-i18next";
+import { Sidebar } from "@/components/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { clearSession } from "@/api/client";
+import { LocaleToggle } from "@/components/locale-toggle";
+import { useSessionTimeout } from "@/lib/session";
 import { useOverview, useSpaceStats, useSearchStats } from "@/api/queries";
 
 export function DashboardPage() {
+  const { t, i18n } = useTranslation();
   // Set up session timeout (auto-logout after 30 min inactivity)
   useSessionTimeout();
 
@@ -12,154 +14,114 @@ export function DashboardPage() {
   const { data: spaceStats } = useSpaceStats();
   const { data: searchStats } = useSearchStats();
 
-  const handleLogout = () => {
-    clearSession();
-  };
-
   const formatErrorRate = (rate: number) => {
     return (rate * 100).toFixed(2) + "%";
   };
 
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case "healthy":
+        return t("status.healthy");
+      case "degraded":
+        return t("status.degraded");
+      case "unhealthy":
+        return t("status.unhealthy");
+      default:
+        return status;
+    }
+  };
+
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r border-border bg-card">
-        <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4 text-primary-foreground"
-            >
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-lg font-semibold">Memorix</span>
-        </div>
-        <nav className="flex-1 space-y-1 p-2">
-          <NavItem href="/dashboard" label="Overview" active />
-          <NavItem href="/dashboard/spaces" label="Spaces" />
-          <NavItem href="/dashboard/agents" label="Agents" />
-          <NavItem href="/dashboard/storage" label="Storage" />
-        </nav>
-        <div className="border-t border-border p-2">
-          <Link
-            to="/"
-            onClick={handleLogout}
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16,17 21,12 16,7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Logout
-          </Link>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main content */}
-      <main className="flex-1">
-        <header className="flex h-16 items-center justify-between border-b border-border px-6">
-          <h1 className="text-xl font-semibold">Overview</h1>
-          <div className="flex items-center gap-4">
+      <main className="flex-1 pt-14 lg:pt-0">
+        <header className="flex h-16 items-center justify-between border-b border-border px-4 lg:px-6">
+          <h1 className="text-xl font-semibold">{t("overview.title")}</h1>
+          <div className="hidden items-center gap-4 lg:flex">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">System Status:</span>
-              <StatusBadge status={overview?.status || "healthy"} />
+              <span className="text-sm text-muted-foreground">{t("status.systemStatus")}:</span>
+              <StatusBadge status={overview?.status || "healthy"} getStatusLabel={getStatusLabel} />
             </div>
+            <LocaleToggle />
             <ThemeToggle />
           </div>
         </header>
-        <div className="p-6">
+        <div className="p-4 lg:p-6">
           {overviewLoading ? (
-            <div className="text-muted-foreground">Loading...</div>
+            <div className="text-muted-foreground">{t("common.loading")}</div>
           ) : (
             <>
               {/* Stats Cards */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
-                  title="Active Tenants"
+                  title={t("overview.activeTenants")}
                   value={overview?.active_tenants ?? spaceStats?.active_tenants ?? 0}
                 />
                 <StatCard
-                  title="Active Agents"
+                  title={t("overview.activeAgents")}
                   value={overview?.active_agents ?? 0}
                 />
                 <StatCard
-                  title="Requests/sec"
+                  title={t("overview.requestsPerSec")}
                   value={(overview?.request_stats?.requests_per_sec ?? 0).toFixed(2)}
                 />
                 <StatCard
-                  title="Error Rate"
+                  title={t("overview.errorRate")}
                   value={formatErrorRate(overview?.request_stats?.error_rate ?? 0)}
                 />
               </div>
 
               {/* Request Stats */}
-              <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                <div className="rounded-lg border border-border p-6">
-                  <h2 className="text-lg font-semibold">Request Statistics</h2>
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border border-border p-4 lg:p-6">
+                  <h2 className="text-lg font-semibold">{t("overview.requestStats")}</h2>
                   <div className="mt-4 space-y-3">
                     <StatRow
-                      label="Total Requests"
+                      label={t("overview.totalRequests")}
                       value={(overview?.request_stats?.total_requests ?? 0).toLocaleString()}
                     />
                     <StatRow
-                      label="Avg Latency"
+                      label={t("overview.avgLatency")}
                       value={(overview?.request_stats?.avg_latency_ms ?? 0).toFixed(2) + " ms"}
                     />
                     <StatRow
-                      label="P50 Latency"
+                      label={t("overview.p50Latency")}
                       value={(overview?.request_stats?.p50_latency_ms ?? 0).toFixed(2) + " ms"}
                     />
                     <StatRow
-                      label="P95 Latency"
+                      label={t("overview.p95Latency")}
                       value={(overview?.request_stats?.p95_latency_ms ?? 0).toFixed(2) + " ms"}
                     />
                     <StatRow
-                      label="P99 Latency"
+                      label={t("overview.p99Latency")}
                       value={(overview?.request_stats?.p99_latency_ms ?? 0).toFixed(2) + " ms"}
                     />
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border p-6">
-                  <h2 className="text-lg font-semibold">Search Statistics</h2>
+                <div className="rounded-lg border border-border p-4 lg:p-6">
+                  <h2 className="text-lg font-semibold">{t("overview.searchStats")}</h2>
                   <div className="mt-4 space-y-3">
                     <StatRow
-                      label="Vector Searches"
+                      label={t("overview.vectorSearches")}
                       value={(searchStats?.vector_searches ?? 0).toLocaleString()}
                     />
                     <StatRow
-                      label="Keyword Searches"
+                      label={t("overview.keywordSearches")}
                       value={(searchStats?.keyword_searches ?? 0).toLocaleString()}
                     />
                     <StatRow
-                      label="Hybrid Searches"
+                      label={t("overview.hybridSearches")}
                       value={(searchStats?.hybrid_searches ?? 0).toLocaleString()}
                     />
                     <StatRow
-                      label="Avg Search Latency"
+                      label={t("overview.avgSearchLatency")}
                       value={(searchStats?.avg_search_latency_ms ?? 0).toFixed(2) + " ms"}
                     />
                     <StatRow
-                      label="Success Rate"
+                      label={t("overview.successRate")}
                       value={((searchStats?.success_rate ?? 0) * 100).toFixed(1) + "%"}
                     />
                   </div>
@@ -168,15 +130,21 @@ export function DashboardPage() {
 
               {/* Top Active Tenants */}
               {spaceStats?.top_active_tenants && spaceStats.top_active_tenants.length > 0 && (
-                <div className="mt-6 rounded-lg border border-border p-6">
-                  <h2 className="text-lg font-semibold">Top Active Spaces</h2>
-                  <div className="mt-4">
-                    <table className="w-full">
+                <div className="mt-6 rounded-lg border border-border p-4 lg:p-6">
+                  <h2 className="text-lg font-semibold">{t("overview.topActiveSpaces")}</h2>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[400px]">
                       <thead>
                         <tr className="border-b border-border text-left">
-                          <th className="pb-2 text-sm font-medium text-muted-foreground">Name</th>
-                          <th className="pb-2 text-sm font-medium text-muted-foreground">Requests</th>
-                          <th className="pb-2 text-sm font-medium text-muted-foreground">Agents</th>
+                          <th className="pb-2 text-sm font-medium text-muted-foreground">
+                            {t("spaces.table.name")}
+                          </th>
+                          <th className="pb-2 text-sm font-medium text-muted-foreground">
+                            {t("spaces.table.memories")}
+                          </th>
+                          <th className="pb-2 text-sm font-medium text-muted-foreground">
+                            {t("spaces.table.agents")}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -194,17 +162,19 @@ export function DashboardPage() {
               )}
 
               {/* Uptime */}
-              <div className="mt-6 rounded-lg border border-border p-6">
-                <h2 className="text-lg font-semibold">System Info</h2>
+              <div className="mt-6 rounded-lg border border-border p-4 lg:p-6">
+                <h2 className="text-lg font-semibold">{t("overview.systemInfo")}</h2>
                 <div className="mt-4 space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Uptime:</span>{" "}
+                    <span className="font-medium">{t("overview.uptime")}:</span>{" "}
                     {overview?.uptime || "--"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Started:</span>{" "}
+                    <span className="font-medium">{t("overview.started")}:</span>{" "}
                     {overview?.start_time
-                      ? new Date(overview.start_time).toLocaleString()
+                      ? new Date(overview.start_time).toLocaleString(
+                          i18n.language === "zh-CN" ? "zh-CN" : "en-US"
+                        )
                       : "--"}
                   </p>
                 </div>
@@ -217,7 +187,13 @@ export function DashboardPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({
+  status,
+  getStatusLabel,
+}: {
+  status: string;
+  getStatusLabel: (status: string) => string;
+}) {
   const colors: Record<string, string> = {
     healthy: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     degraded: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
@@ -230,31 +206,8 @@ function StatusBadge({ status }: { status: string }) {
         colors[status] || colors.healthy
       }`}
     >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {getStatusLabel(status)}
     </span>
-  );
-}
-
-function NavItem({
-  href,
-  label,
-  active = false,
-}: {
-  href: string;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      to={href}
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-        active
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }
 

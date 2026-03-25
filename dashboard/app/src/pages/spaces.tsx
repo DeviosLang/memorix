@@ -1,20 +1,19 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { useSessionTimeout } from "@/lib/session";
+import { useTranslation } from "react-i18next";
+import { Sidebar } from "@/components/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { clearSession } from "@/api/client";
+import { LocaleToggle } from "@/components/locale-toggle";
+import { useSessionTimeout } from "@/lib/session";
 import { useSpaces, useSpaceDetail } from "@/api/queries";
+import { formatRelativeTime, formatDateTime } from "@/lib/i18n";
 import type { SpaceListItem } from "@/types/metrics";
 
 export function SpacesPage() {
+  const { t, i18n } = useTranslation();
   useSessionTimeout();
   const { data, isLoading, error } = useSpaces();
   const [sortBy, setSortBy] = useState<"memory" | "activity">("memory");
   const [expandedSpace, setExpandedSpace] = useState<string | null>(null);
-
-  const handleLogout = () => {
-    clearSession();
-  };
 
   const sortedSpaces = data?.spaces ? [...data.spaces] : [];
   if (sortBy === "memory") {
@@ -35,41 +34,37 @@ export function SpacesPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "--";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+  const timeAgo = (dateStr?: string) => {
+    return formatRelativeTime(t, dateStr);
   };
 
-  const timeAgo = (dateStr?: string) => {
-    if (!dateStr) return "Never";
-    const date = new Date(dateStr);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return "Just now";
-    if (seconds < 3600) return Math.floor(seconds / 60) + "m ago";
-    if (seconds < 86400) return Math.floor(seconds / 3600) + "h ago";
-    return Math.floor(seconds / 86400) + "d ago";
+  const formatDate = (dateStr?: string) => {
+    return formatDateTime(dateStr, i18n.language);
   };
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar onLogout={handleLogout} />
-      <main className="flex-1">
-        <header className="flex h-16 items-center justify-between border-b border-border px-6">
-          <h1 className="text-xl font-semibold">Spaces</h1>
-          <div className="flex items-center gap-4">
+      <Sidebar />
+      <main className="flex-1 pt-14 lg:pt-0">
+        <header className="flex h-16 items-center justify-between border-b border-border px-4 lg:px-6">
+          <h1 className="text-xl font-semibold">{t("spaces.title")}</h1>
+          <div className="hidden items-center gap-4 lg:flex">
+            <LocaleToggle />
             <ThemeToggle />
           </div>
         </header>
-        <div className="p-6">
-          {isLoading && <div className="text-muted-foreground">Loading spaces...</div>}
-          {error && <div className="text-red-500">Error loading spaces</div>}
-          
+        <div className="p-4 lg:p-6">
+          {isLoading && (
+            <div className="text-muted-foreground">{t("spaces.loading")}</div>
+          )}
+          {error && (
+            <div className="text-red-500">{t("spaces.error")}</div>
+          )}
+
           {data && (
             <>
-              <div className="mb-4 flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">Sort by:</span>
+              <div className="mb-4 flex flex-wrap items-center gap-2 lg:gap-4">
+                <span className="text-sm text-muted-foreground">{t("spaces.sortBy")}</span>
                 <button
                   onClick={() => setSortBy("memory")}
                   className={`rounded-md px-3 py-1 text-sm ${
@@ -78,7 +73,7 @@ export function SpacesPage() {
                       : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  Memory Count
+                  {t("spaces.memoryCount")}
                 </button>
                 <button
                   onClick={() => setSortBy("activity")}
@@ -88,20 +83,32 @@ export function SpacesPage() {
                       : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  Last Activity
+                  {t("spaces.lastActivity")}
                 </button>
               </div>
 
-              <div className="rounded-lg border border-border">
-                <table className="w-full">
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Memories</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Agents</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Last Active</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Storage</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">
+                        {t("spaces.table.name")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">
+                        {t("spaces.table.memories")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">
+                        {t("spaces.table.agents")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">
+                        {t("spaces.table.lastActive")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">
+                        {t("spaces.table.storage")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">
+                        {t("spaces.table.status")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -125,7 +132,7 @@ export function SpacesPage() {
               </div>
 
               <div className="mt-4 text-sm text-muted-foreground">
-                Total: {data.total_count} spaces
+                {t("spaces.totalSpaces", { count: data.total_count })}
               </div>
             </>
           )}
@@ -150,6 +157,12 @@ function SpaceRow({
   timeAgo: (date?: string) => string;
   formatDate: (date?: string) => string;
 }) {
+  const { t } = useTranslation();
+
+  const getStatusLabel = (status: string): string => {
+    return status === "active" ? t("status.active") : t("status.inactive");
+  };
+
   return (
     <>
       <tr
@@ -185,7 +198,7 @@ function SpaceRow({
                 : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
             }`}
           >
-            {space.status}
+            {getStatusLabel(space.status)}
           </span>
         </td>
       </tr>
@@ -207,10 +220,11 @@ function SpaceDetail({
   tenantId: string;
   formatDate: (date?: string) => string;
 }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useSpaceDetail(tenantId);
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading details...</div>;
+    return <div className="text-sm text-muted-foreground">{t("spaces.detail.loading")}</div>;
   }
 
   if (!data) {
@@ -220,15 +234,15 @@ function SpaceDetail({
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <div>
-        <h3 className="mb-2 font-semibold">Agents ({data.agents?.length || 0})</h3>
+        <h3 className="mb-2 font-semibold">{t("spaces.detail.agents", { count: data.agents?.length || 0 })}</h3>
         {data.agents && data.agents.length > 0 ? (
-          <div className="rounded border border-border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded border border-border">
+            <table className="w-full min-w-[300px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="px-3 py-2 text-left">ID</th>
-                  <th className="px-3 py-2 text-left">Type</th>
-                  <th className="px-3 py-2 text-left">Last Active</th>
+                  <th className="px-3 py-2 text-left">{t("spaces.detail.agentId")}</th>
+                  <th className="px-3 py-2 text-left">{t("spaces.detail.agentType")}</th>
+                  <th className="px-3 py-2 text-left">{t("spaces.detail.lastActive")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -245,24 +259,24 @@ function SpaceDetail({
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No agents in this space</p>
+          <p className="text-sm text-muted-foreground">{t("spaces.detail.noAgents")}</p>
         )}
       </div>
       <div>
-        <h3 className="mb-2 font-semibold">Recent Memories</h3>
+        <h3 className="mb-2 font-semibold">{t("spaces.detail.recentMemories")}</h3>
         {data.recent_memories && data.recent_memories.length > 0 ? (
           <div className="space-y-2">
             {data.recent_memories.map((memory) => (
               <div key={memory.memory_id} className="rounded border border-border p-2">
                 <p className="text-sm">{memory.content.slice(0, 100)}...</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  by {memory.agent_id} on {formatDate(memory.created_at)}
+                  {t("spaces.detail.by", { agent: memory.agent_id, date: formatDate(memory.created_at) })}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No recent memories</p>
+          <p className="text-sm text-muted-foreground">{t("spaces.detail.noMemories")}</p>
         )}
       </div>
     </div>
@@ -285,83 +299,5 @@ function AgentTypeBadge({ type }: { type: string }) {
     >
       {type}
     </span>
-  );
-}
-
-function Sidebar({ onLogout }: { onLogout: () => void }) {
-  return (
-    <aside className="flex w-64 flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4 text-primary-foreground"
-          >
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-        </div>
-        <span className="text-lg font-semibold">Memorix</span>
-      </div>
-      <nav className="flex-1 space-y-1 p-2">
-        <NavItem href="/dashboard" label="Overview" />
-        <NavItem href="/dashboard/spaces" label="Spaces" active />
-        <NavItem href="/dashboard/agents" label="Agents" />
-        <NavItem href="/dashboard/storage" label="Storage" />
-      </nav>
-      <div className="border-t border-border p-2">
-        <Link
-          to="/"
-          onClick={onLogout}
-          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16,17 21,12 16,7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          Logout
-        </Link>
-      </div>
-    </aside>
-  );
-}
-
-function NavItem({
-  href,
-  label,
-  active = false,
-}: {
-  href: string;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      to={href}
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-        active
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }
