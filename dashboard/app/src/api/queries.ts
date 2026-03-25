@@ -9,6 +9,11 @@ export const dashboardKeys = {
   gcStats: () => [...dashboardKeys.all, "gc-stats"] as const,
   spaceStats: () => [...dashboardKeys.all, "space-stats"] as const,
   conflictStats: () => [...dashboardKeys.all, "conflict-stats"] as const,
+  // New keys for space and agent management
+  spaces: () => [...dashboardKeys.all, "spaces"] as const,
+  spaceDetail: (tenantId: string) => [...dashboardKeys.all, "spaces", tenantId] as const,
+  agents: () => [...dashboardKeys.all, "agents"] as const,
+  storage: () => [...dashboardKeys.all, "storage"] as const,
 };
 
 export const overviewOptions = queryOptions({
@@ -47,6 +52,30 @@ export const conflictStatsOptions = queryOptions({
   refetchInterval: 60000,
 });
 
+export const spacesOptions = queryOptions({
+  queryKey: dashboardKeys.spaces(),
+  queryFn: () => api.getSpaces(),
+  refetchInterval: 60000,
+});
+
+export const spaceDetailOptions = (tenantId: string) => queryOptions({
+  queryKey: dashboardKeys.spaceDetail(tenantId),
+  queryFn: () => api.getSpaceDetail(tenantId),
+  refetchInterval: 60000,
+});
+
+export const agentsOptions = queryOptions({
+  queryKey: dashboardKeys.agents(),
+  queryFn: () => api.getAgentActivity(),
+  refetchInterval: 60000,
+});
+
+export const storageOptions = queryOptions({
+  queryKey: dashboardKeys.storage(),
+  queryFn: () => api.getStorageAnalysis(),
+  refetchInterval: 60000,
+});
+
 // Hook exports
 export function useOverview() {
   return useQuery(overviewOptions);
@@ -70,4 +99,20 @@ export function useSpaceStats() {
 
 export function useConflictStats() {
   return useQuery(conflictStatsOptions);
+}
+
+export function useSpaces() {
+  return useQuery(spacesOptions);
+}
+
+export function useSpaceDetail(tenantId: string) {
+  return useQuery(spaceDetailOptions(tenantId));
+}
+
+export function useAgents() {
+  return useQuery(agentsOptions);
+}
+
+export function useStorage() {
+  return useQuery(storageOptions);
 }

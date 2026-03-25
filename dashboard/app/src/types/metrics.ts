@@ -113,3 +113,86 @@ export interface ConflictSummary {
   resolution: "lww" | "llm_merge";
   resolved_at: string;
 }
+
+// ===== Space and Agent Management Types =====
+
+export interface SpaceListItem {
+  tenant_id: string;
+  tenant_name: string;
+  memory_count: number;
+  agent_count: number;
+  last_active_at?: string;
+  storage_bytes: number;
+  status: string;
+  created_at: string;
+  agents?: AgentSummary[];
+  recent_memories?: MemorySummary[];
+  collected_at?: string;
+}
+
+export interface AgentSummary {
+  agent_id: string;
+  agent_type: string; // "claude-code", "openclaw", "opencode"
+  memory_count: number;
+  last_active_at: string;
+}
+
+export interface MemorySummary {
+  memory_id: string;
+  content: string;
+  agent_id: string;
+  created_at: string;
+}
+
+export interface SpaceListResponse {
+  spaces: SpaceListItem[];
+  total_count: number;
+  collected_at: string;
+}
+
+export interface AgentActivity {
+  agent_id: string;
+  agent_type: string;
+  tenant_id: string;
+  tenant_name?: string;
+  memory_count: number;
+  last_active_at: string;
+  timeline: ActivityDataPoint[];
+  shared_spaces?: string[];
+}
+
+export interface ActivityDataPoint {
+  date: string;
+  writes: number;
+  reads: number;
+  total_ops: number;
+}
+
+export interface AgentActivityResponse {
+  agents: AgentActivity[];
+  by_type: Record<string, number>;
+  total_agents: number;
+  collected_at: string;
+}
+
+export interface StorageTrendPoint {
+  date: string;
+  storage_bytes: number;
+  memory_count: number;
+  tenant_id?: string;
+}
+
+export interface StorageAnalysisResponse {
+  total_bytes: number;
+  by_space: SpaceStorageInfo[];
+  trend: StorageTrendPoint[];
+  collected_at: string;
+}
+
+export interface SpaceStorageInfo {
+  tenant_id: string;
+  tenant_name: string;
+  storage_bytes: number;
+  percent: number;
+  memory_count: number;
+}

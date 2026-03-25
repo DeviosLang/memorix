@@ -7,6 +7,9 @@ import {
 } from "@tanstack/react-router";
 import { LoginPage } from "./pages/login";
 import { DashboardPage } from "./pages/dashboard";
+import { SpacesPage } from "./pages/spaces";
+import { AgentsPage } from "./pages/agents";
+import { StoragePage } from "./pages/storage";
 import { getDashboardToken } from "./api/client";
 
 const rootRoute = createRootRoute({
@@ -35,7 +38,43 @@ const dashboardRoute = createRoute({
   },
 });
 
-const routeTree = rootRoute.addChildren([loginRoute, dashboardRoute]);
+const spacesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dashboard/spaces",
+  component: SpacesPage,
+  beforeLoad: () => {
+    const token = getDashboardToken();
+    if (!token) {
+      throw redirect({ to: "/" });
+    }
+  },
+});
+
+const agentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dashboard/agents",
+  component: AgentsPage,
+  beforeLoad: () => {
+    const token = getDashboardToken();
+    if (!token) {
+      throw redirect({ to: "/" });
+    }
+  },
+});
+
+const storageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dashboard/storage",
+  component: StoragePage,
+  beforeLoad: () => {
+    const token = getDashboardToken();
+    if (!token) {
+      throw redirect({ to: "/" });
+    }
+  },
+});
+
+const routeTree = rootRoute.addChildren([loginRoute, dashboardRoute, spacesRoute, agentsRoute, storageRoute]);
 
 export const router = createRouter({ routeTree });
 

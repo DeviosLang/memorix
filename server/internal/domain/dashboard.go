@@ -212,3 +212,115 @@ type ConflictMetric struct {
 	Timestamp  time.Time
 	TenantID   string
 }
+
+// ===== Space and Agent Management Types =====
+
+// SpaceListItem represents a single space (tenant) in the list view.
+type SpaceListItem struct {
+	TenantID       string     `json:"tenant_id"`
+	TenantName     string     `json:"tenant_name"`
+	MemoryCount    int        `json:"memory_count"`
+	AgentCount     int        `json:"agent_count"`
+	LastActiveAt   *time.Time `json:"last_active_at,omitempty"`
+	StorageBytes   int64      `json:"storage_bytes"`
+	Status         string     `json:"status"`
+	CreatedAt      time.Time  `json:"created_at"`
+	// Expanded details
+	Agents         []AgentSummary `json:"agents,omitempty"`
+	RecentMemories []MemorySummary `json:"recent_memories,omitempty"`
+	CollectedAt    time.Time      `json:"collected_at,omitempty"`
+}
+
+// AgentSummary represents an agent within a space.
+type AgentSummary struct {
+	AgentID      string    `json:"agent_id"`
+	AgentType    string    `json:"agent_type"` // "claude-code", "openclaw", "opencode"
+	MemoryCount  int       `json:"memory_count"`
+	LastActiveAt time.Time `json:"last_active_at"`
+}
+
+// MemorySummary represents a recent memory for display.
+type MemorySummary struct {
+	MemoryID  string    `json:"memory_id"`
+	Content   string    `json:"content"` // Truncated content
+	AgentID   string    `json:"agent_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// SpaceListResponse is the response for the space list endpoint.
+type SpaceListResponse struct {
+	Spaces      []SpaceListItem `json:"spaces"`
+	TotalCount  int             `json:"total_count"`
+	CollectedAt time.Time       `json:"collected_at"`
+}
+
+// AgentType represents the type of an AI agent.
+type AgentType string
+
+const (
+	AgentTypeClaudeCode AgentType = "claude-code"
+	AgentTypeOpenClaw   AgentType = "openclaw"
+	AgentTypeOpenCode   AgentType = "opencode"
+	AgentTypeUnknown    AgentType = "unknown"
+)
+
+// AgentActivity represents an agent's activity data.
+type AgentActivity struct {
+	AgentID       string           `json:"agent_id"`
+	AgentType     string           `json:"agent_type"`
+	TenantID      string           `json:"tenant_id"`
+	TenantName    string           `json:"tenant_name,omitempty"`
+	MemoryCount   int              `json:"memory_count"`
+	LastActiveAt  time.Time        `json:"last_active_at"`
+	Timeline      []ActivityDataPoint `json:"timeline"` // 7-day activity
+	SharedSpaces  []string         `json:"shared_spaces,omitempty"` // Other agents in same space
+}
+
+// ActivityDataPoint represents a single day's activity.
+type ActivityDataPoint struct {
+	Date      string `json:"date"` // "2024-01-15"
+	Writes    int    `json:"writes"`
+	Reads     int    `json:"reads"`
+	TotalOps  int    `json:"total_ops"`
+}
+
+// AgentActivityResponse is the response for the agent activity endpoint.
+type AgentActivityResponse struct {
+	Agents      []AgentActivity `json:"agents"`
+	ByType      map[string]int  `json:"by_type"` // agent_type -> count
+	TotalAgents int             `json:"total_agents"`
+	CollectedAt time.Time       `json:"collected_at"`
+}
+
+// StorageTrendPoint represents storage at a point in time.
+type StorageTrendPoint struct {
+	Date         string `json:"date"` // "2024-01-15"
+	StorageBytes int64  `json:"storage_bytes"`
+	MemoryCount  int    `json:"memory_count"`
+	TenantID     string `json:"tenant_id,omitempty"` // Empty for aggregate
+}
+
+// StorageAnalysisResponse contains storage analysis data.
+type StorageAnalysisResponse struct {
+	TotalBytes       int64                `json:"total_bytes"`
+	BySpace          []SpaceStorageInfo   `json:"by_space"`
+	Trend            []StorageTrendPoint  `json:"trend"` // 30-day trend
+	CollectedAt      time.Time            `json:"collected_at"`
+}
+
+// SpaceStorageInfo shows storage info for a single space.
+type SpaceStorageInfo struct {
+	TenantID     string  `json:"tenant_id"`
+	TenantName   string  `json:"tenant_name"`
+	StorageBytes int64   `json:"storage_bytes"`
+	Percent      float64 `json:"percent"` // Percentage of total storage
+	MemoryCount  int     `json:"memory_count"`
+}
+
+// ActivityMetric tracks a single activity event.
+type ActivityMetric struct {
+	AgentID    string
+	TenantID   string
+	Operation  string // "write", "read"
+	Timestamp  time.Time
+}
