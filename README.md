@@ -495,10 +495,11 @@ memorix/
 |-------|------|--------|
 | **Phase 1** | Core server + CRUD + hybrid search (vector + keyword + FTS) + upsert + LWW + plugins (Claude Code, OpenCode, OpenClaw) | ✅ Done |
 | **Phase 1.5** | User profile facts, conversation summaries, context window assembly, memory GC, rules injection, smart ingest pipeline (LLM extract + reconcile), optimistic locking (`If-Match` / `409`) | ✅ Done |
+| **Phase 1.6** | Benchmark harness (functional recall tests + performance load tests), Dashboard (admin monitoring panel) | ✅ Done |
 | **Phase 2** | Memory tiers (`working/short/long/reference`), salience scoring, auto promote/demote, archive-first forgetting | 🔜 Planned |
 | **Phase 3** | Knowledge base migration (tenant-to-tenant + `memorix migrate` CLI), LLM-assisted conflict merge, auto-tagging | 📋 Planned |
 | **Phase 4** | Rule normalization (repeated patterns → executable rules, auditable + reversible), Skill/MCP recommendation mining from memory signals | 📋 Planned |
-| **Phase 5** | Web dashboard, bulk import/export, CLI wizard | 📋 Planned |
+| **Phase 5** | Bulk import/export, CLI wizard | 📋 Planned |
 
 Vector Clock CRDT was deferred and removed from the roadmap.
 
