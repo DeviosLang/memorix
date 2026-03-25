@@ -234,3 +234,26 @@ type GCPreview struct {
 	CurrentMemoryCount int            `json:"current_memory_count"`
 	MaxMemories        int            `json:"max_memories"`
 }
+
+// MemoryExportFile represents the portable export format for memories.
+// Compatible with mem9's export format for interoperability.
+type MemoryExportFile struct {
+	SchemaVersion string              `json:"schema_version"`
+	ExportedAt    time.Time           `json:"exported_at"`
+	SourceSpaceID string              `json:"source_space_id"`
+	AgentID       string              `json:"agent_id,omitempty"`
+	Memories      []MemoryExportEntry `json:"memories"`
+}
+
+// MemoryExportEntry represents a single memory entry in the export file.
+type MemoryExportEntry struct {
+	ID         string          `json:"id,omitempty"`
+	Content    string          `json:"content"`
+	Source     string          `json:"source,omitempty"`
+	Tags       []string        `json:"tags,omitempty"`
+	Metadata   json.RawMessage `json:"metadata,omitempty"`
+	MemoryType MemoryType      `json:"memory_type"`
+	State      MemoryState     `json:"state,omitempty"`
+	CreatedAt  time.Time       `json:"created_at,omitempty"`
+	UpdatedAt  time.Time       `json:"updated_at,omitempty"`
+}

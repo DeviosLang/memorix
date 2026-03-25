@@ -327,6 +327,9 @@ func (s *Server) Router(tenantMW, rateLimitMW func(http.Handler) http.Handler) h
 		r.Put("/memories/{id}", s.updateMemory)
 		r.Delete("/memories/{id}", s.deleteMemory)
 
+		// Memory Export.
+		r.Get("/export", s.exportMemories)
+
 		// Context window management.
 		r.Post("/context", s.contextWindow)
 		r.Post("/context/truncate", s.quickTruncate)

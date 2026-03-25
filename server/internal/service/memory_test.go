@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/devioslang/memorix/server/internal/domain"
 	"github.com/devioslang/memorix/server/internal/llm"
@@ -16,6 +17,21 @@ import (
 
 func floatEqual(a, b float64) bool {
 	return math.Abs(a-b) < 1e-9
+}
+
+// exportMemoryRepoMock is a mock that supports the Export test
+type exportMemoryRepoMock struct {
+	memoryRepoMock
+	listMemories []domain.Memory
+	listTotal    int
+	listErr      error
+}
+
+func (m *exportMemoryRepoMock) List(ctx context.Context, f domain.MemoryFilter) ([]domain.Memory, int, error) {
+	if m.listErr != nil {
+		return nil, 0, m.listErr
+	}
+	return m.listMemories, m.listTotal, nil
 }
 
 func TestApplyTypeWeights(t *testing.T) {
@@ -478,5 +494,139 @@ func TestCreateRunsReconcilePipeline(t *testing.T) {
 	}
 	if repo.createCalls[0].MemoryType != domain.TypeInsight {
 		t.Fatalf("expected insight memory type, got %s", repo.createCalls[0].MemoryType)
+	}
+}
+
+// TestExport tests the Export function
+func TestExport(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	memories := []domain.Memory{
+		{
+			ID:         "mem-1",
+			Content:    "User prefers dark mode",
+			MemoryType: domain.TypePinned,
+			State:      domain.StateActive,
+			Tags:       []string{"preferences", "ui"},
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		},
+		{
+			ID:         "mem-2",
+			Content:    "User works with Go 1.22",
+			MemoryType: domain.TypeInsight,
+			State:      domain.StateActive,
+			Source:     "conversation",
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		},
+	}
+
+	repo := &exportMemoryRepoMock{
+		listMemories: memories,
+		listTotal:    2,
+	}
+	svc := NewMemoryService(repo, nil, nil, "", ModeSmart)
+
+	export, err := svc.Export(context.Background(), "tenant-123", "dashboard")
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	// Verify export metadata
+	if export.SchemaVersion != "memorix.memory_export.v1" {
+		t.Fatalf("expected schema version memorix.memory_export.v1, got %s", export.SchemaVersion)
+	}
+	if export.SourceSpaceID != "tenant-123" {
+		t.Fatalf("expected source_space_id tenant-123, got %s", export.SourceSpaceID)
+	}
+	if export.AgentID != "dashboard" {
+		t.Fatalf("expected agent_id dashboard, got %s", export.AgentID)
+	}
+
+	// Verify memories
+	if len(export.Memories) != 2 {
+		t.Fatalf("expected 2 memories, got %d", len(export.Memories))
+	}
+
+	// Verify first memory (pinned)
+	if export.Memories[0].ID != "mem-1" {
+		t.Fatalf("expected first memory ID mem-1, got %s", export.Memories[0].ID)
+	}
+	if export.Memories[0].MemoryType != domain.TypePinned {
+		t.Fatalf("expected first memory type pinned, got %s", export.Memories[0].MemoryType)
+	}
+	if export.Memories[0].Content != "User prefers dark mode" {
+		t.Fatalf("unexpected first memory content: %s", export.Memories[0].Content)
+	}
+	if len(export.Memories[0].Tags) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(export.Memories[0].Tags))
+	}
+
+	// Verify second memory (insight)
+	if export.Memories[1].ID != "mem-2" {
+		t.Fatalf("expected second memory ID mem-2, got %s", export.Memories[1].ID)
+	}
+	if export.Memories[1].MemoryType != domain.TypeInsight {
+		t.Fatalf("expected second memory type insight, got %s", export.Memories[1].MemoryType)
+	}
+	if export.Memories[1].Source != "conversation" {
+		t.Fatalf("expected source conversation, got %s", export.Memories[1].Source)
+	}
+}
+
+// TestExportEmpty tests export with no memories
+func TestExportEmpty(t *testing.T) {
+	t.Parallel()
+
+	repo := &exportMemoryRepoMock{
+		listMemories: nil,
+		listTotal:    0,
+	}
+	svc := NewMemoryService(repo, nil, nil, "", ModeSmart)
+
+	export, err := svc.Export(context.Background(), "tenant-empty", "")
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	if len(export.Memories) != 0 {
+		t.Fatalf("expected 0 memories, got %d", len(export.Memories))
+	}
+}
+
+// TestExportPagination tests that export correctly paginates through memories
+func TestExportPagination(t *testing.T) {
+	t.Parallel()
+
+	// Create 250 memories (more than one page)
+	now := time.Now()
+	memories := make([]domain.Memory, 250)
+	for i := 0; i < 250; i++ {
+		memories[i] = domain.Memory{
+			ID:         string(rune('a' + i%26)) + string(rune('a'+i/26)),
+			Content:    "Memory content",
+			MemoryType: domain.TypeInsight,
+			State:      domain.StateActive,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		}
+	}
+
+	repo := &exportMemoryRepoMock{
+		listMemories: memories,
+		listTotal:    250,
+	}
+	svc := NewMemoryService(repo, nil, nil, "", ModeSmart)
+
+	export, err := svc.Export(context.Background(), "tenant-large", "test-agent")
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+
+	// Verify export contains all memories
+	if len(export.Memories) != 250 {
+		t.Fatalf("expected 250 memories, got %d", len(export.Memories))
 	}
 }
