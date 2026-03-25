@@ -8,9 +8,22 @@ import type {
 } from "@/types/metrics";
 
 const DASHBOARD_TOKEN_KEY = "dashboard-token";
+const SERVER_URL_KEY = "server-url";
 
-function getDashboardToken(): string | null {
-  return localStorage.getItem(DASHBOARD_TOKEN_KEY);
+export function getServerUrl(): string {
+  return sessionStorage.getItem(SERVER_URL_KEY) || "http://localhost:8080";
+}
+
+export function setServerUrl(url: string): void {
+  sessionStorage.setItem(SERVER_URL_KEY, url);
+}
+
+export function getDashboardToken(): string | null {
+  return sessionStorage.getItem(DASHBOARD_TOKEN_KEY);
+}
+
+export function setDashboardToken(token: string): void {
+  sessionStorage.setItem(DASHBOARD_TOKEN_KEY, token);
 }
 
 export class APIError extends Error {
@@ -29,7 +42,8 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
     throw new APIError(401, "No dashboard token found");
   }
 
-  const response = await fetch(`/api/dashboard${endpoint}`, {
+  const serverUrl = getServerUrl();
+  const response = await fetch(`${serverUrl}/api/dashboard${endpoint}`, {
     headers: {
       "X-Dashboard-Token": token,
     },
@@ -58,5 +72,36 @@ export const api = {
 };
 
 export function clearDashboardToken(): void {
-  localStorage.removeItem(DASHBOARD_TOKEN_KEY);
+  sessionStorage.removeItem(DASHBOARD_TOKEN_KEY);
+  sessionStorage.removeItem(SERVER_URL_KEY);
+}
+
+export function clearSession(): void {
+  clearDashboardToken();
+}
+
+/**
+ * Verify dashboard credentials by calling the overview endpoint
+ */
+export async function verifyCredentials(
+  serverUrl: string,
+  token: string
+): Promise<DashboardOverview> {
+  const response = await fetch(`${serverUrl}/api/dashboard/overview`, {
+    headers: {
+      "X-Dashboard-Token": token,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new APIError(401, "Invalid dashboard token");
+    }
+    throw new APIError(
+      response.status,
+      `Server error: ${response.statusText}`
+    );
+  }
+
+  return response.json();
 }

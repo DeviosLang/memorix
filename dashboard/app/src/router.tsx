@@ -3,9 +3,11 @@ import {
   createRootRoute,
   createRoute,
   Outlet,
+  redirect,
 } from "@tanstack/react-router";
 import { LoginPage } from "./pages/login";
 import { DashboardPage } from "./pages/dashboard";
+import { getDashboardToken } from "./api/client";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -25,6 +27,12 @@ const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboard",
   component: DashboardPage,
+  beforeLoad: () => {
+    const token = getDashboardToken();
+    if (!token) {
+      throw redirect({ to: "/" });
+    }
+  },
 });
 
 const routeTree = rootRoute.addChildren([loginRoute, dashboardRoute]);
