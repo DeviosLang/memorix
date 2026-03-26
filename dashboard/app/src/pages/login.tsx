@@ -18,7 +18,7 @@ type ErrorType = "invalid_token" | "server_unreachable" | "network_error" | null
 export function LoginPage() {
   const { t } = useTranslation();
   const [serverUrl, setServerUrlInput] = useState(DEFAULT_SERVER_URL);
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(import.meta.env.VITE_DASHBOARD_TOKEN || "");
   const [error, setError] = useState<ErrorType>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
