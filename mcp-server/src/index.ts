@@ -6,9 +6,13 @@
  *   - stdio  (default, for local MCP clients)
  *   - http   (MCP_TRANSPORT=http, for remote/k8s deployment)
  *
+ * Tenant ID resolution (HTTP mode):
+ *   1. X-Memorix-Tenant-Id header on the initialize request (per-session)
+ *   2. MNEMO_TENANT_ID env var (global default, optional in HTTP mode)
+ *
  * Environment variables:
  *   MNEMO_API_URL    — memorix server URL (required)
- *   MNEMO_TENANT_ID  — tenant ID (required)
+ *   MNEMO_TENANT_ID  — default tenant ID (required for stdio, optional for http)
  *   MNEMO_AGENT_ID   — agent identifier (optional, default: "mcp-agent")
  *   MCP_TRANSPORT    — "stdio" | "http" (default: "stdio")
  *   MCP_PORT         — HTTP listen port (default: 8080)
@@ -23,7 +27,7 @@ import { MemorixClient } from "./memorix-client.js";
 import { createServer } from "./server.js";
 
 const apiUrl = process.env.MNEMO_API_URL;
-const tenantID = process.env.MNEMO_TENANT_ID;
+const defaultTenantID = process.env.MNEMO_TENANT_ID;
 const agentID = process.env.MNEMO_AGENT_ID || "mcp-agent";
 const transportMode = process.env.MCP_TRANSPORT || "stdio";
 const port = parseInt(process.env.MCP_PORT || "8080", 10);
@@ -32,16 +36,23 @@ if (!apiUrl) {
   console.error("MNEMO_API_URL is required");
   process.exit(1);
 }
-if (!tenantID) {
-  console.error("MNEMO_TENANT_ID is required");
-  process.exit(1);
-}
 
-const client = new MemorixClient({ apiUrl, tenantID, agentID });
+/** Cache MemorixClient instances per tenant to avoid re-creating. */
+const clientCache = new Map<string, MemorixClient>();
+
+function getClient(tenantID: string): MemorixClient {
+  let c = clientCache.get(tenantID);
+  if (!c) {
+    c = new MemorixClient({ apiUrl: apiUrl!, tenantID, agentID });
+    clientCache.set(tenantID, c);
+  }
+  return c;
+}
 
 if (transportMode === "http") {
   // --- Streamable HTTP transport (stateful, per-session) ---
   // Each MCP session gets its own transport + server instance.
+  // Tenant ID is resolved from header or env default at session creation.
   const sessions = new Map<string, StreamableHTTPServerTransport>();
 
   async function handleMCP(req: IncomingMessage, res: ServerResponse) {
@@ -62,7 +73,23 @@ if (transportMode === "http") {
       return;
     }
 
-    // No session header — must be an initialize request. Create new session.
+    // No session header — must be an initialize request.
+    // Resolve tenant ID: header takes precedence over env default.
+    const headerTenant = req.headers["x-memorix-tenant-id"] as string | undefined;
+    const tenantID = headerTenant || defaultTenantID;
+
+    if (!tenantID) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Tenant ID required: set X-Memorix-Tenant-Id header or MNEMO_TENANT_ID env" },
+        id: null,
+      }));
+      return;
+    }
+
+    const client = getClient(tenantID);
+
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
     });
@@ -119,6 +146,11 @@ if (transportMode === "http") {
   });
 } else {
   // --- stdio transport (default, for local MCP clients) ---
+  if (!defaultTenantID) {
+    console.error("MNEMO_TENANT_ID is required for stdio transport");
+    process.exit(1);
+  }
+  const client = getClient(defaultTenantID);
   const mcpServer = createServer(client);
   const stdioTransport = new StdioServerTransport();
   await mcpServer.connect(stdioTransport);
