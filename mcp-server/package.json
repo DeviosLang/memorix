@@ -1,0 +1,26 @@
+{
+  "name": "memorix-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server wrapper for memorix — cloud-persistent AI agent memory",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "Apache-2.0",
+  "author": "devioslang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devioslang/memorix.git",
+    "directory": "mcp-server"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}

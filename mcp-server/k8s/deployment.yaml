@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memorix-mcp
+  namespace: rag-etl
+  labels:
+    app: memorix-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memorix-mcp
+  template:
+    metadata:
+      labels:
+        app: memorix-mcp
+    spec:
+      imagePullSecrets:
+        - name: memorix-registry
+      containers:
+        - name: mcp-server
+          image: mirrors.tencent.com/cvm/memorix-mcp-server:latest
+          ports:
+            - containerPort: 8080
+              name: mcp
+          env:
+            - name: MCP_TRANSPORT
+              value: "http"
+            - name: MCP_PORT
+              value: "8080"
+            - name: MNEMO_API_URL
+              value: "http://memorix.rag-etl.svc:8080"
+            - name: MNEMO_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: memorix-mcp-secret
+                  key: tenant-id
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: mcp
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memorix-mcp
+  namespace: rag-etl
+  labels:
+    app: memorix-mcp
+spec:
+  selector:
+    app: memorix-mcp
+  ports:
+    - port: 8080
+      targetPort: mcp
+      protocol: TCP
+      name: mcp
