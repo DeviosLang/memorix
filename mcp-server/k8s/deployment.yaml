@@ -62,7 +62,10 @@ metadata:
   namespace: rag-etl
   labels:
     app: memorix-mcp
+  annotations:
+    service.cloud.tencent.com/direct-access: "true"
 spec:
+  type: LoadBalancer
   selector:
     app: memorix-mcp
   ports:
