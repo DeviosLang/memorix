@@ -10,7 +10,30 @@ You are a memory management agent for the project-level auto memory system. Your
 ## Environment
 
 - Project-level MEMORY.md: Located in project root
-- Auto-memory script: `~/.claude/skills/auto-memory/auto-memory.sh` or project-local
+- Auto-memory script: searched in `~/.claude/skills/auto-memory/auto-memory.sh`, then `~/.claude/plugins/*/skills/auto-memory/auto-memory.sh`
+
+```bash
+# Locate the auto-memory script (check common install paths)
+find_auto_memory_script() {
+  for candidate in \
+    "${HOME}/.claude/skills/auto-memory/auto-memory.sh" \
+    "${HOME}/.claude/plugins/memorix-memory/skills/auto-memory/auto-memory.sh"; do
+    if [[ -x "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  # Fallback: search under ~/.claude
+  local found
+  found=$(find "${HOME}/.claude" -path '*/auto-memory/auto-memory.sh' -type f 2>/dev/null | head -1)
+  if [[ -x "${found:-}" ]]; then
+    echo "$found"
+    return 0
+  fi
+  return 1
+}
+AUTO_MEMORY_SCRIPT=$(find_auto_memory_script || true)
+```
 
 ## Commands
 
@@ -32,9 +55,8 @@ fi
 Show all recorded build, test, and deploy commands.
 
 ```bash
-# Use auto-memory script if available
-if [[ -x "./claude-plugin/skills/auto-memory/auto-memory.sh" ]]; then
-  ./claude-plugin/skills/auto-memory/auto-memory.sh show build
+if [[ -n "${AUTO_MEMORY_SCRIPT:-}" ]]; then
+  "$AUTO_MEMORY_SCRIPT" show build
 else
   # Fallback: extract section from MEMORY.md
   sed -n '/## 📦 Build Commands/,/^## /p' MEMORY.md | head -n -1
@@ -46,9 +68,8 @@ fi
 Show all recorded error patterns and their solutions.
 
 ```bash
-# Use auto-memory script if available
-if [[ -x "./claude-plugin/skills/auto-memory/auto-memory.sh" ]]; then
-  ./claude-plugin/skills/auto-memory/auto-memory.sh show errors
+if [[ -n "${AUTO_MEMORY_SCRIPT:-}" ]]; then
+  "$AUTO_MEMORY_SCRIPT" show errors
 else
   # Fallback: extract section from MEMORY.md
   sed -n '/## 🐛 Error Solutions/,/^## /p' MEMORY.md | head -n -1
@@ -60,9 +81,8 @@ fi
 Show all architectural decisions and their rationale.
 
 ```bash
-# Use auto-memory script if available
-if [[ -x "./claude-plugin/skills/auto-memory/auto-memory.sh" ]]; then
-  ./claude-plugin/skills/auto-memory/auto-memory.sh show decisions
+if [[ -n "${AUTO_MEMORY_SCRIPT:-}" ]]; then
+  "$AUTO_MEMORY_SCRIPT" show decisions
 else
   # Fallback: extract section from MEMORY.md
   sed -n '/## 🏗️ Architecture Decisions/,/^## /p' MEMORY.md | head -n -1
@@ -74,9 +94,8 @@ fi
 Show all recorded user preferences for this project.
 
 ```bash
-# Use auto-memory script if available
-if [[ -x "./claude-plugin/skills/auto-memory/auto-memory.sh" ]]; then
-  ./claude-plugin/skills/auto-memory/auto-memory.sh show preferences
+if [[ -n "${AUTO_MEMORY_SCRIPT:-}" ]]; then
+  "$AUTO_MEMORY_SCRIPT" show preferences
 else
   # Fallback: extract section from MEMORY.md
   sed -n '/## ⚙️ User Preferences/,/^## /p' MEMORY.md | head -n -1
@@ -90,9 +109,8 @@ Search for specific content in MEMORY.md.
 ```bash
 query="$ARGUMENTS"
 
-# Use auto-memory script if available
-if [[ -x "./claude-plugin/skills/auto-memory/auto-memory.sh" ]]; then
-  ./claude-plugin/skills/auto-memory/auto-memory.sh search "$query"
+if [[ -n "${AUTO_MEMORY_SCRIPT:-}" ]]; then
+  "$AUTO_MEMORY_SCRIPT" search "$query"
 else
   # Fallback: grep with context
   grep -i -A 2 -B 1 "$query" MEMORY.md
@@ -104,7 +122,6 @@ fi
 Open MEMORY.md in the default text editor for manual editing.
 
 ```bash
-# Open in editor
 if [[ -f "MEMORY.md" ]]; then
   ${EDITOR:-vim} MEMORY.md
 else
@@ -117,9 +134,8 @@ fi
 Archive current MEMORY.md and start with a clean file.
 
 ```bash
-# Archive current memories
-if [[ -x "./claude-plugin/skills/auto-memory/auto-memory.sh" ]]; then
-  ./claude-plugin/skills/auto-memory/auto-memory.sh archive
+if [[ -n "${AUTO_MEMORY_SCRIPT:-}" ]]; then
+  "$AUTO_MEMORY_SCRIPT" archive
 else
   # Manual archive
   if [[ -f "MEMORY.md" ]]; then

@@ -1,6 +1,6 @@
 ---
 name: auto-memory
-description: "Automatically accumulate project experiences. Triggered when: (1) build/test command succeeds, (2) error is resolved, (3) architecture decision is made, (4) user preference is noted. Records to MEMORY.md with deduplication."
+description: "Write or update project experiences in MEMORY.md. Use this skill when you need to record something valuable to MEMORY.md: a working build command, a resolved error, an architecture decision, a user preference, or any project-specific note. Also use this if the user asks to save something to auto-memory or MEMORY.md."
 context: fork
 allowed-tools: Bash, Read, Write, Edit
 ---

@@ -22,8 +22,17 @@ Memorix uses server mode (memorix-server):
 3. **Store**: Use the common.sh helper to save the memory:
 
 ```bash
-# Source the helpers
-source "$(find ~ -path '*/memorix/claude-plugin/hooks/common.sh' -print -quit 2>/dev/null || echo /dev/null)"
+# Source the helpers — check common install paths first, then search
+_common_sh=""
+for _candidate in \
+  "${HOME}/.claude/plugins/memorix-memory/hooks/common.sh" \
+  "${HOME}/.claude/skills/memorix/hooks/common.sh"; do
+  if [[ -f "$_candidate" ]]; then _common_sh="$_candidate"; break; fi
+done
+if [[ -z "$_common_sh" ]]; then
+  _common_sh=$(find "${HOME}/.claude" -path '*/memorix/claude-plugin/hooks/common.sh' -print -quit 2>/dev/null || true)
+fi
+[[ -n "$_common_sh" ]] && source "$_common_sh"
 
 # Store the memory
 memorix_post_memory '{"content":"THE MEMORY CONTENT HERE","tags":["tag1","tag2"],"source":"claude-code"}'
