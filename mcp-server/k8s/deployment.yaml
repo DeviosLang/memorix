@@ -62,8 +62,10 @@ metadata:
   namespace: rag-etl
   labels:
     app: memorix-mcp
+    service.cloud.tencent.com/loadbalance-type: INTERNAL
   annotations:
-    service.cloud.tencent.com/direct-access: "true"
+    # service.kubernetes.io/qcloud-loadbalancer-internal-subnetid: <subnet-id>
+    # service.kubernetes.io/tke-existed-lbid: <lb-id>
 spec:
   type: LoadBalancer
   selector:
@@ -73,3 +75,4 @@ spec:
       targetPort: mcp
       protocol: TCP
       name: mcp
+  sessionAffinity: None
