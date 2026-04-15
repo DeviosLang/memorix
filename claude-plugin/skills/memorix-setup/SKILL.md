@@ -49,9 +49,33 @@ Tell the user to run in Claude Code:
 /plugin install memorix-memory@memorix
 ```
 
-### Step 4: Restart Claude Code
+### Step 4: Install companion skills
 
-Tell the user to restart Claude Code to activate the plugin.
+After the plugin is installed, tell the user to also install the following skills to unlock the full memorix experience. Each skill serves a distinct purpose:
+
+| Skill | Install command | What it does |
+|-------|----------------|--------------|
+| memory-recall | `/skill install memory-recall` | Search past memories on demand |
+| memory-store | `/skill install memory-store` | Save important info on demand |
+| auto-memory | `/skill install auto-memory` | Auto-record project experiences to MEMORY.md |
+| memory (manage) | `/skill install memory-manage` | `/memory` command to view/search MEMORY.md |
+
+All four skills are available from the same marketplace entry:
+```
+/plugin marketplace add devioslang/memorix
+```
+
+Or if installing from `.skill` files directly:
+```
+/skill install memory-recall.skill
+/skill install memory-store.skill
+/skill install auto-memory.skill
+/skill install memory-manage.skill
+```
+
+### Step 5: Restart Claude Code
+
+Tell the user to restart Claude Code to activate the plugin and all skills.
 
 ## Verification
 
@@ -61,3 +85,17 @@ After setup, suggest testing:
 3. "What UI framework does this project use?"
 
 The agent should recall from memory.
+
+## Summary checklist
+
+Present this checklist to the user at the end of setup:
+
+- [ ] memorix-server is running and accessible
+- [ ] Tenant ID provisioned and saved
+- [ ] `MNEMO_API_URL` and `MNEMO_TENANT_ID` set in `~/.claude/settings.json`
+- [ ] Plugin installed: `memorix-memory`
+- [ ] Skill installed: `memory-recall`
+- [ ] Skill installed: `memory-store`
+- [ ] Skill installed: `auto-memory`
+- [ ] Skill installed: `memory-manage`
+- [ ] Claude Code restarted
