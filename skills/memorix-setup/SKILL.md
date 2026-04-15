@@ -15,6 +15,38 @@ description: |
 
 You need a running memorix-server instance. See the [server README](https://github.com/devioslang/memorix/tree/main/server) for deployment instructions.
 
+## Step 0: Get the code
+
+**Option A: Git clone (recommended)**
+
+```bash
+git clone https://github.com/DeviosLang/memorix.git
+cd memorix
+```
+
+**Option B: Download ZIP**
+
+Download and unzip: https://github.com/DeviosLang/memorix/archive/refs/heads/main.zip
+
+```bash
+unzip memorix-main.zip
+cd memorix-main
+```
+
+**Option C: Docker (no code needed)**
+
+If you only want to run the server without building from source, skip to Step 1 and use:
+
+```bash
+docker pull ghcr.io/devioslang/memorix-server:latest
+docker run -e MNEMO_DSN="user:pass@tcp(host:4000)/memorix?parseTime=true" \
+  -p 8080:8080 ghcr.io/devioslang/memorix-server:latest
+```
+
+Then skip Step 1 and go directly to Step 2.
+
+---
+
 ## Step 1: Deploy memorix-server
 
 ```bash
