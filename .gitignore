@@ -33,7 +33,8 @@ dist/
 *.tgz
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/skills/
 __pycache__/
 pwd.txt
 ft_local
